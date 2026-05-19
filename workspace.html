@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueryMind AI — Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-base:         #0B1020;
+      --bg-surface:      #0e1323;
+      --bg-surface-low:  #0d1224;
+      --bg-surface-mid:  #1a1f30;
+      --bg-surface-high: #25293a;
+      --text-primary:    #dee1f9;
+      --text-secondary:  #bbc9cd;
+      --text-muted:      #4a5568;
+      --cyan-mid:        #22d3ee;
+      --cyan-primary:    #8aebff;
+      --cyan-bright:     #2fd9f4;
+      --violet-primary:  #d0bcff;
+      --violet-deep:     #8b5cf6;
+      --blue-mid:        #adc6ff;
+      --green:           #4ade80;
+      --red:             #ff5f57;
+      --yellow:          #ffbd2e;
+      --green-dot:       #28c840;
+      --border-subtle:   rgba(255,255,255,0.07);
+      --border-elevated: rgba(255,255,255,0.14);
+      --gradient-cta:    linear-gradient(135deg, #22d3ee 0%, #8b5cf6 100%);
+      --radius-sm:  4px;  --radius-md: 12px;
+      --radius-lg: 16px;  --radius-xl: 24px;
+      --radius-full: 9999px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      display: flex; flex-direction: column;
+    }
+
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 55% 50% at 65% 35%, rgba(34,211,238,0.055) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 55% at 30% 70%, rgba(139,92,246,0.045) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ===========================
+       APP HEADER
+    =========================== */
+    .app-header {
+      position: relative; z-index: 50;
+      height: 60px; flex-shrink: 0;
+      background: rgba(11,16,32,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .header-left {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .header-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none;
+    }
+
+    .header-logo svg { width: 28px; height: 28px; }
+
+    .header-logo-text {
+      font-size: 15px; font-weight: 700;
+      color: var(--text-primary); letter-spacing: -0.02em;
+    }
+
+    .header-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px;
+      background: rgba(34,211,238,0.08);
+      border: 1px solid rgba(34,211,238,0.2);
+      border-radius: var(--radius-full);
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      color: var(--cyan-mid);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    .header-nav {
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .hnav-tab {
+      padding: 7px 16px;
+      border-radius: var(--radius-full);
+      font-size: 13px; font-weight: 500;
+      color: var(--text-secondary);
+      background: none; border: none;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .hnav-tab:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+    .hnav-tab.active {
+      background: rgba(255,255,255,0.07);
+      color: var(--text-primary); font-weight: 600;
+    }
+
+    .header-right {
+      display: flex; align-items: center; gap: 14px;
+    }
+
+    .header-icon-btn {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-secondary);
+      transition: background 0.2s, color 0.2s;
+    }
+    .header-icon-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+
+    .header-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--gradient-cta);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #000;
+      cursor: pointer; flex-shrink: 0;
+    }
+
+    /* ===========================
+       APP SHELL
+    =========================== */
+    .app-shell {
+      flex: 1; display: flex;
+      overflow: hidden; position: relative; z-index: 1;
+    }
+
+    /* ===========================
+       LEFT SIDEBAR
+    =========================== */
+    .sidebar {
+      width: 280px; flex-shrink: 0;
+      background: rgba(10,13,24,0.85);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      flex-shrink: 0;
+    }
+
+    .sidebar-title-row {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 12px;
+    }
+
+    .sidebar-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .sidebar-version-badge {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      color: var(--green); letter-spacing: 0.04em;
+      background: rgba(74,222,128,0.1);
+      border: 1px solid rgba(74,222,128,0.22);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+    }
+
+    .sidebar-search {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 9px 12px 9px 34px;
+      color: var(--text-primary);
+      font-size: 13px; font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+    .sidebar-search:focus {
+      border-color: rgba(34,211,238,0.35);
+      box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+    }
+    .sidebar-search::placeholder { color: var(--text-muted); }
+
+    .search-wrap { position: relative; }
+    .search-icon {
+      position: absolute; left: 10px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted); pointer-events: none;
+    }
+
+    /* Schema tree */
+    .schema-tree { flex: 1; overflow-y: auto; padding: 10px 8px; }
+    .schema-tree::-webkit-scrollbar { width: 4px; }
+    .schema-tree::-webkit-scrollbar-track { background: transparent; }
+    .schema-tree::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+    .table-group { margin-bottom: 4px; }
+
+    .table-header {
+      display: flex; align-items: center;
+      gap: 8px; padding: 8px 10px;
+      border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .table-header:hover { background: rgba(34,211,238,0.06); }
+
+    .table-chevron {
+      color: var(--text-muted); font-size: 10px;
+      transition: transform 0.2s; flex-shrink: 0;
+      margin-left: auto;
+    }
+    .table-chevron.open { transform: rotate(0deg); }
+    .table-chevron.closed { transform: rotate(-90deg); }
+
+    .table-icon { flex-shrink: 0; }
+    .table-name {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-primary); flex: 1;
+    }
+
+    .table-fields { padding-left: 16px; overflow: hidden; }
+
+    .field-row {
+      display: flex; align-items: center;
+      gap: 8px; padding: 6px 10px;
+      border-radius: 7px;
+      transition: background 0.15s; cursor: default;
+    }
+    .field-row:hover { background: rgba(34,211,238,0.05); }
+
+    .field-type-icon {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      width: 18px; text-align: center;
+      flex-shrink: 0;
+    }
+    .fti-int  { color: var(--cyan-mid); }
+    .fti-varchar { color: var(--violet-primary); }
+    .fti-ts   { color: #fbbf24; }
+    .fti-dec  { color: var(--green); }
+
+    .field-name {
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px; color: var(--text-secondary); flex: 1;
+    }
+    .field-type-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; color: var(--text-muted);
+      letter-spacing: 0.03em; flex-shrink: 0;
+    }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 14px 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+
+    .db-status-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; margin-bottom: 10px;
+      background: rgba(74,222,128,0.05);
+      border: 1px solid rgba(74,222,128,0.18);
+      border-radius: var(--radius-md);
+    }
+
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+      animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+      0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+      70%  { box-shadow: 0 0 0 7px rgba(74,222,128,0); }
+      100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+    }
+
+    .db-status-text { flex: 1; }
+    .db-status-title {
+      font-size: 12px; font-weight: 600; color: var(--text-primary);
+    }
+    .db-status-sub {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      color: var(--green); letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .btn-upgrade {
+      width: 100%; padding: 9px 0;
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: var(--radius-lg);
+      color: var(--violet-primary);
+      font-size: 13px; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer; text-align: center;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-upgrade:hover {
+      background: rgba(139,92,246,0.14);
+      border-color: rgba(139,92,246,0.4);
+    }
+
+    /* ===========================
+       MAIN WORKSPACE
+    =========================== */
+    .workspace {
+      flex: 1; overflow-y: auto;
+      padding: 28px 32px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .workspace::-webkit-scrollbar { width: 5px; }
+    .workspace::-webkit-scrollbar-track { background: transparent; }
+    .workspace::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+    /* Mode tabs */
+    .mode-tabs-row {
+      display: flex; justify-content: center;
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-full);
+      padding: 4px; gap: 2px;
+    }
+
+    .mode-tab {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 22px;
+      border-radius: var(--radius-full);
+      font-size: 14px; font-weight: 500;
+      color: var(--text-secondary);
+      background: none; border: none; cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+    .mode-tab:hover { color: var(--text-primary); }
+    .mode-tab.active {
+      background: var(--gradient-cta);
+      color: #020617; font-weight: 600;
+      box-shadow: 0 0 24px rgba(34,211,238,0.28);
+    }
+
+    /* Input card */
+    .input-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 20px 24px;
+      transition: border-color 0.3s;
+    }
+    .input-card:focus-within {
+      border-color: rgba(34,211,238,0.25);
+      box-shadow: 0 0 0 1px rgba(34,211,238,0.06);
+    }
+
+    .main-textarea {
+      width: 100%; min-height: 84px;
+      background: none; border: none;
+      resize: none; outline: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px; font-weight: 400;
+      color: var(--text-primary); line-height: 1.65;
+    }
+    .main-textarea::placeholder { color: rgba(187,201,205,0.45); }
+
+    .input-bottom-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-top: 14px; padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap; gap: 12px;
+    }
+
+    .input-left-tools {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .tool-icon-btn {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 9px; cursor: pointer; color: var(--text-secondary);
+      transition: background 0.2s, color 0.2s;
+    }
+    .tool-icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+
+    .tools-divider {
+      width: 1px; height: 22px;
+      background: rgba(255,255,255,0.1);
+    }
+
+    .toggle-group {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .toggle-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px; font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .toggle-switch {
+      position: relative; width: 36px; height: 20px;
+      display: inline-block;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-track {
+      position: absolute; inset: 0; cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px; transition: background 0.25s;
+    }
+    .toggle-switch input:checked + .toggle-track {
+      background: linear-gradient(135deg, #22d3ee, #8b5cf6);
+    }
+    .toggle-track::after {
+      content: ''; position: absolute;
+      left: 2px; top: 2px;
+      width: 16px; height: 16px;
+      border-radius: 50%; background: white;
+      transition: transform 0.25s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    .toggle-switch input:checked + .toggle-track::after {
+      transform: translateX(16px);
+    }
+
+    .btn-generate {
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 24px;
+      background: var(--gradient-cta);
+      border: none; border-radius: var(--radius-lg);
+      color: #020617; font-size: 14px; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer; white-space: nowrap;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(34,211,238,0.4);
+    }
+    .btn-generate.loading { pointer-events: none; }
+    .btn-generate.loading .btn-gen-text { opacity: 0; }
+    .btn-generate.loading .btn-gen-spinner { display: block; }
+    .btn-gen-spinner {
+      display: none; position: absolute;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Quick queries */
+    .quick-queries-row {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+
+    .qq-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .qq-tag {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: var(--radius-full);
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px; color: var(--text-secondary);
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .qq-tag:hover {
+      background: rgba(34,211,238,0.08);
+      border-color: rgba(34,211,238,0.3);
+      color: var(--cyan-primary);
+    }
+
+    /* SQL Output Card */
+    .result-zone { display: flex; flex-direction: column; gap: 0; }
+
+    .result-label {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .sql-output-card {
+      background: rgba(7,11,22,0.82);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      /* Animated AI border glow */
+      box-shadow: 0 0 0 1px rgba(34,211,238,0.08), 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .sql-card-header {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.025);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .sql-header-left {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .window-dots { display: flex; gap: 5px; }
+    .wd { width: 10px; height: 10px; border-radius: 50%; }
+    .wd.r { background: #ff5f57; }
+    .wd.y { background: #ffbd2e; }
+    .wd.g { background: #28c840; }
+
+    .sql-filename {
+      font-family: 'Geist Mono', monospace;
+      font-size: 12px; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .sql-header-actions {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .action-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 8px;
+      font-size: 12px; font-weight: 500;
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .action-btn:hover {
+      background: rgba(255,255,255,0.08); color: var(--text-primary);
+      border-color: rgba(255,255,255,0.15);
+    }
+    .action-btn.copied {
+      color: var(--green); border-color: rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.06);
+    }
+
+    .sql-code-block {
+      padding: 20px 24px;
+      overflow-x: auto;
+    }
+    .sql-code-block::-webkit-scrollbar { height: 4px; }
+    .sql-code-block::-webkit-scrollbar-track { background: transparent; }
+    .sql-code-block::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    pre { margin: 0; white-space: pre; }
+    code {
+      font-family: 'Geist Mono', monospace;
+      font-size: 13px; line-height: 1.8;
+    }
+
+    /* SQL syntax */
+    .k { color: #c4abff; }           /* keywords */
+    .f { color: #22d3ee; }           /* functions */
+    .s { color: #86efac; }           /* strings */
+    .n { color: #fca5a5; }           /* numbers */
+    .c { color: #dee1f9; }           /* columns/tables */
+    .cm { color: #3d4b5c; font-style: italic; } /* comments */
+    .op { color: #c4abff; }          /* operators */
+
+    .sql-footer {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .explain-toggle-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 14px;
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: var(--radius-full);
+      color: var(--violet-primary);
+      font-size: 12px; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .explain-toggle-btn:hover {
+      background: rgba(139,92,246,0.14);
+      border-color: rgba(139,92,246,0.35);
+    }
+
+    .explain-chevron {
+      transition: transform 0.25s; font-size: 10px;
+    }
+    .explain-chevron.open { transform: rotate(180deg); }
+
+    .sql-row-count {
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px; color: var(--text-muted);
+    }
+
+    /* Explanation Timeline */
+    .timeline-section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+      opacity: 0;
+    }
+    .timeline-section.open {
+      max-height: 600px; opacity: 1;
+    }
+
+    .timeline-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-primary); margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .timeline {
+      border-left: 2px solid rgba(34,211,238,0.2);
+      padding-left: 20px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+
+    .step-item {
+      position: relative; padding-bottom: 22px;
+    }
+    .step-item:last-child { padding-bottom: 0; }
+
+    .step-dot {
+      position: absolute;
+      left: -26px; top: 4px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22d3ee, #8b5cf6);
+      box-shadow: 0 0 8px rgba(34,211,238,0.4);
+    }
+
+    .step-num {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px; font-weight: 600;
+      color: var(--cyan-mid); letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+
+    .step-title {
+      font-size: 14px; font-weight: 600;
+      color: var(--text-primary); margin-bottom: 4px;
+    }
+
+    .step-body {
+      font-size: 13px; color: var(--text-secondary);
+      line-height: 1.65;
+    }
+    .step-body .hl { color: var(--cyan-mid); font-weight: 500; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px; z-index: 999;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 20px;
+      background: rgba(22,27,43,0.95);
+      border: 1px solid rgba(74,222,128,0.3);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      font-size: 13px; font-weight: 500;
+      color: var(--text-primary);
+      backdrop-filter: blur(16px);
+      transform: translateY(80px); opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== APP HEADER ===== -->
+  <header class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="header-logo">
+        <svg viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="7" fill="url(#hg1)"/>
+          <path d="M6 15l3-4.5L12 16l2.5-6L18 17l3-4.5" stroke="white" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="hg1" x1="0" y1="0" x2="28" y2="28">
+              <stop offset="0%" stop-color="#22d3ee"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="header-logo-text">QueryMind AI</span>
+      </a>
+      <span class="header-badge">✦ AI POWERED V1.0</span>
+    </div>
+
+    <nav class="header-nav">
+      <button class="hnav-tab active">Query</button>
+      <button class="hnav-tab">Dashboards</button>
+      <button class="hnav-tab">Notebooks</button>
+    </nav>
+
+    <div class="header-right">
+      <button class="header-icon-btn" title="Notifications">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+          <path d="M8.5 2a5.5 5.5 0 015.5 5.5v2l1 2H2l1-2V7.5A5.5 5.5 0 018.5 2z" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M7 14a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="header-icon-btn" title="Settings">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+          <circle cx="8.5" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M8.5 1.5v2M8.5 13.5v2M1.5 8.5h2M13.5 8.5h2M3.4 3.4l1.4 1.4M12.2 12.2l1.4 1.4M3.4 13.6l1.4-1.4M12.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <div class="header-avatar">N</div>
+    </div>
+  </header>
+
+  <!-- ===== APP SHELL ===== -->
+  <div class="app-shell">
+
+    <!-- ===== LEFT SIDEBAR ===== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title-row">
+          <span class="sidebar-title">Database Schema</span>
+          <span class="sidebar-version-badge">v2.4 Stable</span>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <circle cx="5.5" cy="5.5" r="4" stroke="#4a5568" stroke-width="1.4"/>
+            <path d="M9 9l2.5 2.5" stroke="#4a5568" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <input class="sidebar-search" type="text" placeholder="Search tables...">
+        </div>
+      </div>
+
+      <div class="schema-tree">
+
+        <!-- Table: merchants -->
+        <div class="table-group" id="tg-merchants">
+          <div class="table-header" onclick="toggleTable('merchants')">
+            <svg class="table-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="2" width="12" height="10" rx="2" stroke="#22d3ee" stroke-width="1.4"/>
+              <path d="M1 6h12M5 6v6" stroke="#22d3ee" stroke-width="1.3"/>
+            </svg>
+            <span class="table-name">merchants</span>
+            <svg class="table-chevron open" id="chev-merchants" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="table-fields" id="fields-merchants">
+            <div class="field-row">
+              <span class="field-type-icon fti-int">#</span>
+              <span class="field-name">id</span>
+              <span class="field-type-label">INT</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-varchar">T</span>
+              <span class="field-name">name</span>
+              <span class="field-type-label">VARCHAR</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-varchar">T</span>
+              <span class="field-name">category</span>
+              <span class="field-type-label">VARCHAR</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-dec">≈</span>
+              <span class="field-name">amount</span>
+              <span class="field-type-label">DECIMAL</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-ts">⏱</span>
+              <span class="field-name">created_at</span>
+              <span class="field-type-label">TIMESTAMP</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table: transactions -->
+        <div class="table-group" id="tg-transactions">
+          <div class="table-header" onclick="toggleTable('transactions')">
+            <svg class="table-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="2" width="12" height="10" rx="2" stroke="#22d3ee" stroke-width="1.4"/>
+              <path d="M1 6h12M5 6v6" stroke="#22d3ee" stroke-width="1.3"/>
+            </svg>
+            <span class="table-name">transactions</span>
+            <svg class="table-chevron open" id="chev-transactions" width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="table-fields" id="fields-transactions">
+            <div class="field-row">
+              <span class="field-type-icon fti-int">#</span>
+              <span class="field-name">id</span>
+              <span class="field-type-label">INT</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-int">#</span>
+              <span class="field-name">merchant_id</span>
+              <span class="field-type-label">INT</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-varchar">T</span>
+              <span class="field-name">name</span>
+              <span class="field-type-label">VARCHAR</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-dec">≈</span>
+              <span class="field-name">amount</span>
+              <span class="field-type-label">DECIMAL</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-varchar">T</span>
+              <span class="field-name">status</span>
+              <span class="field-type-label">VARCHAR</span>
+            </div>
+            <div class="field-row">
+              <span class="field-type-icon fti-ts">⏱</span>
+              <span class="field-name">created_at</span>
+              <span class="field-type-label">TIMESTAMP</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end schema-tree -->
+
+      <div class="sidebar-footer">
+        <div class="db-status-card">
+          <div class="pulse-dot"></div>
+          <div class="db-status-text">
+            <div class="db-status-title">Connected to Production DB</div>
+            <div class="db-status-sub">LIVE SYNC ENABLED</div>
+          </div>
+        </div>
+        <button class="btn-upgrade">⚡ Upgrade to Pro</button>
+      </div>
+    </aside>
+
+    <!-- ===== MAIN WORKSPACE ===== -->
+    <main class="workspace">
+
+      <!-- Mode Tabs -->
+      <div class="mode-tabs-row">
+        <div class="mode-tabs">
+          <button class="mode-tab active" id="tab-translate" onclick="switchMode('translate')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 3h6M4 3v8M7 10H1M8 3l2 4 2-4M9 6h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Translate Vietnamese to SQL
+          </button>
+          <button class="mode-tab" id="tab-explain" onclick="switchMode('explain')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M7 6v4M7 4.5v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            Explain SQL Query
+          </button>
+        </div>
+      </div>
+
+      <!-- Input Zone -->
+      <div class="input-card">
+        <textarea
+          class="main-textarea"
+          id="main-input"
+          placeholder="Ví dụ: Lấy tổng doanh thu của từng merchant trong tháng này, sắp xếp từ cao đến thấp..."
+          rows="4"
+        >Lấy danh sách top 10 merchant theo tổng doanh thu tháng này, chỉ tính giao dịch thành công</textarea>
+
+        <div class="input-bottom-row">
+          <div class="input-left-tools">
+            <button class="tool-icon-btn" title="Voice input">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="4.5" y="1" width="5" height="7" rx="2.5" stroke="currentColor" stroke-width="1.4"/>
+                <path d="M2 7a5 5 0 0010 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M7 12v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="tool-icon-btn" title="Attach file">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M12 6.5l-5.5 5.5a3.5 3.5 0 01-5-5l6-6a2 2 0 013 3L4 10a1 1 0 01-1.5-1.5L8 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="tools-divider"></div>
+            <div class="toggle-group">
+              <label class="toggle-switch">
+                <input type="checkbox" checked id="schema-toggle">
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Schema-aware</span>
+            </div>
+            <div class="toggle-group">
+              <label class="toggle-switch">
+                <input type="checkbox" id="optimize-toggle">
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Auto-optimize</span>
+            </div>
+          </div>
+
+          <button class="btn-generate" id="gen-btn" onclick="generateInsight()">
+            <div class="btn-gen-spinner"></div>
+            <span class="btn-gen-text">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="vertical-align:middle;margin-right:5px;">
+                <path d="M7 1l1.5 4.5H13l-3.75 2.72 1.44 4.42L7 10.14 3.31 12.64l1.44-4.42L1 5.5h4.5z" fill="currentColor"/>
+              </svg>
+              Generate Insight
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Queries -->
+      <div class="quick-queries-row">
+        <span class="qq-label">Quick Queries:</span>
+        <button class="qq-tag" onclick="fillQuery('gmv')">⚡ Top Merchants by GMV</button>
+        <button class="qq-tag" onclick="fillQuery('growth')">📈 Fast Growth List</button>
+        <button class="qq-tag" onclick="fillQuery('failure')">⚠ Failure Rate Analysis</button>
+      </div>
+
+      <!-- SQL Output Card -->
+      <div class="result-zone">
+        <div class="result-label">Generated SQL Output</div>
+        <div class="sql-output-card" id="sql-card">
+          <div class="sql-card-header">
+            <div class="sql-header-left">
+              <div class="window-dots">
+                <div class="wd r"></div>
+                <div class="wd y"></div>
+                <div class="wd g"></div>
+              </div>
+              <span class="sql-filename">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="1" y="1" width="10" height="10" rx="2" stroke="#bbc9cd" stroke-width="1.2"/>
+                  <path d="M3 4h6M3 6h4M3 8h5" stroke="#bbc9cd" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+                query_v1_insight.sql
+              </span>
+            </div>
+            <div class="sql-header-actions">
+              <button class="action-btn" id="copy-btn" onclick="copyCode()">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                  <path d="M8 4V3a1 1 0 00-1-1H3a1 1 0 00-1 1v4a1 1 0 001 1h1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                </svg>
+                Copy Code
+              </button>
+              <button class="action-btn" onclick="downloadSQL()">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M6 1v7M3 5l3 3 3-3M1 9v1a1 1 0 001 1h8a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Download .sql
+              </button>
+            </div>
+          </div>
+
+          <div class="sql-code-block">
+            <pre><code id="sql-output"><span class="cm">-- Generated by QueryMind AI</span>
+<span class="k">SELECT</span>
+    <span class="c">m</span>.<span class="c">name</span> <span class="k">AS</span> <span class="c">merchant_name</span>,
+    <span class="f">SUM</span>(<span class="c">t</span>.<span class="c">amount</span>) <span class="k">AS</span> <span class="c">total_revenue</span>
+<span class="k">FROM</span>
+    <span class="c">merchants</span> <span class="c">m</span>
+<span class="k">JOIN</span> <span class="c">transactions</span> <span class="c">t</span>
+    <span class="k">ON</span> <span class="c">m</span>.<span class="c">id</span> <span class="op">=</span> <span class="c">t</span>.<span class="c">merchant_id</span>
+<span class="k">WHERE</span>
+    <span class="c">t</span>.<span class="c">created_at</span> <span class="op">&gt;=</span> <span class="f">DATE_TRUNC</span>(<span class="s">'month'</span>, <span class="f">CURRENT_DATE</span>)
+    <span class="k">AND</span> <span class="c">t</span>.<span class="c">created_at</span> <span class="op">&lt;</span> <span class="f">DATE_TRUNC</span>(<span class="s">'month'</span>, <span class="f">CURRENT_DATE</span>) <span class="op">+</span> <span class="f">INTERVAL</span> <span class="s">'1 month'</span>
+    <span class="k">AND</span> <span class="c">t</span>.<span class="c">status</span> <span class="op">=</span> <span class="s">'completed'</span>
+<span class="k">GROUP BY</span>
+    <span class="c">m</span>.<span class="c">id</span>, <span class="c">m</span>.<span class="c">name</span>
+<span class="k">ORDER BY</span>
+    <span class="c">total_revenue</span> <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="n">10</span>;</code></pre>
+          </div>
+
+          <div class="sql-footer">
+            <button class="explain-toggle-btn" onclick="toggleExplain()">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M2 4l4 4 4-4" id="explain-chev-path" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Explain Every Step
+              <span class="explain-chevron" id="explain-chevron">▾</span>
+            </button>
+            <span class="sql-row-count">✓ Valid SQL · 13 lines</span>
+          </div>
+        </div>
+
+        <!-- Explanation Timeline -->
+        <div class="timeline-section" id="timeline-section">
+          <div class="timeline-title">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="#22d3ee" stroke-width="1.4"/>
+              <path d="M7 4v3.5L9 9" stroke="#22d3ee" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Step-by-Step Explanation
+          </div>
+          <div class="timeline">
+            <div class="step-item">
+              <div class="step-dot"></div>
+              <div class="step-num">Step 1</div>
+              <div class="step-title">Lọc dữ liệu theo thời gian và trạng thái</div>
+              <div class="step-body">
+                Mệnh đề <span class="hl">WHERE</span> lọc bảng <span class="hl">transactions</span> để chỉ lấy các giao dịch
+                trong tháng hiện tại bằng hàm <span class="hl">DATE_TRUNC('month', CURRENT_DATE)</span>.
+                Đồng thời, chỉ tính giao dịch có <span class="hl">status = 'completed'</span> — bỏ qua giao dịch đang chờ hoặc thất bại.
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-dot"></div>
+              <div class="step-num">Step 2</div>
+              <div class="step-title">Kết hợp dữ liệu từ hai bảng</div>
+              <div class="step-body">
+                Câu lệnh <span class="hl">JOIN</span> ghép bảng <span class="hl">merchants</span> với
+                <span class="hl">transactions</span> qua điều kiện <span class="hl">m.id = t.merchant_id</span>,
+                cho phép lấy tên merchant từ bảng merchants khi tính toán doanh thu từ bảng transactions.
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-dot"></div>
+              <div class="step-num">Step 3</div>
+              <div class="step-title">Tính tổng doanh thu theo từng merchant</div>
+              <div class="step-body">
+                <span class="hl">GROUP BY m.id, m.name</span> nhóm tất cả giao dịch theo từng merchant.
+                Hàm <span class="hl">SUM(t.amount)</span> cộng toàn bộ giá trị giao dịch trong nhóm đó,
+                đặt tên kết quả là <span class="hl">total_revenue</span> để dễ đọc.
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-dot"></div>
+              <div class="step-num">Step 4</div>
+              <div class="step-title">Sắp xếp và giới hạn kết quả</div>
+              <div class="step-body">
+                <span class="hl">ORDER BY total_revenue DESC</span> sắp xếp kết quả từ merchant có doanh thu cao nhất
+                xuống thấp nhất. <span class="hl">LIMIT 10</span> chỉ trả về 10 merchant đứng đầu danh sách.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- end workspace -->
+  </div><!-- end app-shell -->
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast">
+    <div class="toast-dot"></div>
+    <span id="toast-msg">Copied to clipboard!</span>
+  </div>
+
+  <script>
+    // ===== STATE =====
+    let currentMode = 'translate';
+    let explainOpen = false;
+    let toastTimer = null;
+
+    const QUICK_QUERIES = {
+      gmv:     'Lấy danh sách top 10 merchant theo tổng giá trị giao dịch (GMV) cao nhất trong tháng này',
+      growth:  'Liệt kê các merchant có tốc độ tăng trưởng doanh thu nhanh nhất so với tháng trước',
+      failure: 'Phân tích tỷ lệ giao dịch thất bại theo từng merchant, sắp xếp từ tỷ lệ cao đến thấp'
+    };
+
+    const MOCK_SQL = {
+      translate: `<span class="cm">-- Generated by QueryMind AI</span>
+<span class="k">SELECT</span>
+    <span class="c">m</span>.<span class="c">name</span> <span class="k">AS</span> <span class="c">merchant_name</span>,
+    <span class="f">SUM</span>(<span class="c">t</span>.<span class="c">amount</span>) <span class="k">AS</span> <span class="c">total_revenue</span>
+<span class="k">FROM</span>
+    <span class="c">merchants</span> <span class="c">m</span>
+<span class="k">JOIN</span> <span class="c">transactions</span> <span class="c">t</span>
+    <span class="k">ON</span> <span class="c">m</span>.<span class="c">id</span> <span class="op">=</span> <span class="c">t</span>.<span class="c">merchant_id</span>
+<span class="k">WHERE</span>
+    <span class="c">t</span>.<span class="c">created_at</span> <span class="op">&gt;=</span> <span class="f">DATE_TRUNC</span>(<span class="s">'month'</span>, <span class="f">CURRENT_DATE</span>)
+    <span class="k">AND</span> <span class="c">t</span>.<span class="c">status</span> <span class="op">=</span> <span class="s">'completed'</span>
+<span class="k">GROUP BY</span>
+    <span class="c">m</span>.<span class="c">id</span>, <span class="c">m</span>.<span class="c">name</span>
+<span class="k">ORDER BY</span>
+    <span class="c">total_revenue</span> <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="n">10</span>;`,
+      explain: `<span class="cm">-- Analysis by QueryMind AI</span>
+<span class="cm">-- Input query broken into logical components:</span>
+<span class="cm">--  Step 1: Filter  → WHERE clause scope</span>
+<span class="cm">--  Step 2: Join    → merchants ⟶ transactions</span>
+<span class="cm">--  Step 3: Aggregate → SUM(amount) per group</span>
+<span class="cm">--  Step 4: Sort & Limit → TOP 10 result set</span>`
+    };
+
+    // ===== MODE SWITCH =====
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + mode).classList.add('active');
+
+      const placeholders = {
+        translate: 'Ví dụ: Lấy tổng doanh thu của từng merchant trong tháng này, sắp xếp từ cao đến thấp...',
+        explain:   'Ví dụ: Dán SQL phức tạp vào đây để QueryMind AI giải thích từng bước một...'
+      };
+      document.getElementById('main-input').placeholder = placeholders[mode];
+    }
+
+    // ===== QUICK QUERIES =====
+    function fillQuery(key) {
+      document.getElementById('main-input').value = QUICK_QUERIES[key];
+      switchMode('translate');
+    }
+
+    // ===== GENERATE INSIGHT =====
+    function generateInsight() {
+      const btn = document.getElementById('gen-btn');
+      btn.classList.add('loading');
+
+      // Close explain panel if open
+      if (explainOpen) toggleExplain();
+
+      setTimeout(() => {
+        btn.classList.remove('loading');
+        document.getElementById('sql-output').innerHTML = MOCK_SQL[currentMode];
+        showToast('✓ Query generated successfully');
+      }, 1400);
+    }
+
+    // ===== SCHEMA TREE TOGGLE =====
+    function toggleTable(tableName) {
+      const fields = document.getElementById('fields-' + tableName);
+      const chev   = document.getElementById('chev-' + tableName);
+      const isOpen = chev.classList.contains('open');
+
+      if (isOpen) {
+        fields.style.maxHeight = fields.scrollHeight + 'px';
+        requestAnimationFrame(() => {
+          fields.style.transition = 'max-height 0.25s ease, opacity 0.2s ease';
+          fields.style.maxHeight = '0';
+          fields.style.opacity = '0';
+          fields.style.overflow = 'hidden';
+        });
+        chev.classList.remove('open');
+        chev.classList.add('closed');
+      } else {
+        fields.style.maxHeight = '0';
+        fields.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+          fields.style.transition = 'max-height 0.28s ease, opacity 0.2s ease';
+          fields.style.maxHeight = fields.scrollHeight + 200 + 'px';
+          fields.style.opacity = '1';
+        });
+        chev.classList.remove('closed');
+        chev.classList.add('open');
+      }
+    }
+
+    // Initialize tree open state
+    ['merchants','transactions'].forEach(t => {
+      const f = document.getElementById('fields-' + t);
+      f.style.overflow = 'hidden';
+      f.style.opacity = '1';
+    });
+
+    // ===== EXPLAIN TOGGLE =====
+    function toggleExplain() {
+      explainOpen = !explainOpen;
+      const section = document.getElementById('timeline-section');
+      const chev    = document.getElementById('explain-chevron');
+      section.classList.toggle('open', explainOpen);
+      chev.style.transform = explainOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+      chev.style.transition = 'transform 0.25s ease';
+    }
+
+    // ===== COPY CODE =====
+    function copyCode() {
+      const codeEl = document.getElementById('sql-output');
+      const text   = codeEl.innerText || codeEl.textContent;
+      const btn    = document.getElementById('copy-btn');
+
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg> Copied!`;
+        showToast('Code copied to clipboard!');
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M8 4V3a1 1 0 00-1-1H3a1 1 0 00-1 1v4a1 1 0 001 1h1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg> Copy Code`;
+        }, 2000);
+      }).catch(() => showToast('Copy failed — please try manually'));
+    }
+
+    // ===== DOWNLOAD SQL =====
+    function downloadSQL() {
+      const codeEl = document.getElementById('sql-output');
+      const text   = codeEl.innerText || codeEl.textContent;
+      const blob   = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'query_v1_insight.sql';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      showToast('Downloading query_v1_insight.sql...');
+    }
+
+    // ===== TOAST =====
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ===== HEADER NAV TABS =====
+    document.querySelectorAll('.hnav-tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.hnav-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    // ===== SIDEBAR SEARCH FILTER =====
+    document.querySelector('.sidebar-search').addEventListener('input', function() {
+      const q = this.value.toLowerCase();
+      document.querySelectorAll('.field-row').forEach(row => {
+        const name = row.querySelector('.field-name').textContent.toLowerCase();
+        row.style.display = name.includes(q) || q === '' ? '' : 'none';
+      });
+      document.querySelectorAll('.table-header').forEach(th => {
+        const name = th.querySelector('.table-name').textContent.toLowerCase();
+        th.closest('.table-group').style.display = name.includes(q) || q === '' ? '' : 'none';
+      });
+    });
+  </script>
+
+</body>
+</html>
