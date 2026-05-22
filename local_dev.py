@@ -32,6 +32,31 @@ import uvicorn
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ── Load CDP module from app.py (mock modal so no Modal install needed) ──
+def _load_app_module():
+    import sys
+    import importlib.util
+    from unittest.mock import MagicMock
+    mock = MagicMock()
+    mock.App.return_value = MagicMock()
+    mock.Secret.from_name.return_value = MagicMock()
+    mock.asgi_app.return_value = lambda f: f
+    sys.modules["modal"] = mock
+    spec = importlib.util.spec_from_file_location("_app", os.path.join(BASE_DIR, "app.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+_app = _load_app_module()
+CDP_CRITERIA_FIELDS        = _app.CDP_CRITERIA_FIELDS
+CDP_SEGMENTS_LIBRARY       = _app.CDP_SEGMENTS_LIBRARY
+CDP_NL_SYSTEM_PROMPT       = _app.CDP_NL_SYSTEM_PROMPT
+_PREVIEW_MERCHANTS         = _app._PREVIEW_MERCHANTS
+build_sql_from_filters     = _app.build_sql_from_filters
+estimate_audience_sql      = _app.estimate_audience_sql
+simulate_audience_estimate = _app.simulate_audience_estimate
+parse_filter_json_from_response = _app.parse_filter_json_from_response
+
 # ── Schema context ───────────────────────────────────────────
 SCHEMA_CONTEXT = {
     "merchants": {
@@ -188,16 +213,59 @@ async def api_explain(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e), "code": 500}, status_code=500)
 
+# ── CDP routes ────────────────────────────────────────────────
+@web_app.get("/cdp", response_class=HTMLResponse)
+async def serve_cdp():
+    return HTMLResponse(content=_read_html("cdp.html"))
+
+@web_app.get("/api/cdp/segments")
+async def api_cdp_segments():
+    return JSONResponse({"segments": CDP_SEGMENTS_LIBRARY})
+
+@web_app.get("/api/cdp/criteria_fields")
+async def api_cdp_criteria_fields():
+    return JSONResponse({"fields": CDP_CRITERIA_FIELDS})
+
+@web_app.post("/api/cdp/segment/estimate")
+async def api_cdp_estimate(request: Request):
+    try:
+        body = await request.json()
+        filters = body.get("filters")
+        if not filters or not filters.get("groups"):
+            return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
+        sql = estimate_audience_sql(filters)
+        est = simulate_audience_estimate(filters)
+        preview = _PREVIEW_MERCHANTS[:body.get("preview_rows", 5)]
+        return JSONResponse({**est, "generated_sql": sql, "merchant_preview": preview, "mode": "cdp_estimate"})
+    except ValueError as e:
+        return JSONResponse({"error": str(e), "code": 400}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
+@web_app.post("/api/cdp/nl_to_filters")
+async def api_cdp_nl(request: Request):
+    try:
+        body = await request.json()
+        description = body.get("description", "").strip()
+        if not description:
+            return JSONResponse({"error": "Missing 'description' field", "code": 400}, status_code=400)
+        raw = call_claude(CDP_NL_SYSTEM_PROMPT, description)
+        parsed = parse_filter_json_from_response(raw)
+        return JSONResponse({**parsed, "mode": "nl_to_filters"})
+    except Exception as e:
+        return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
 # ── Entry point ──────────────────────────────────────────────
 if __name__ == "__main__":
     print()
-    print("  ┌─────────────────────────────────────────────┐")
-    print("  │   QueryMind AI — Local Dev Server           │")
-    print("  │                                             │")
-    print("  │   Landing : http://localhost:8000           │")
-    print("  │   Workspace: http://localhost:8000/workspace│")
-    print("  │                                             │")
-    print("  │   Ctrl+C để dừng server                    │")
-    print("  └─────────────────────────────────────────────┘")
+    print("  ┌──────────────────────────────────────────────────┐")
+    print("  │   QueryMind AI — Local Dev Server                │")
+    print("  │                                                  │")
+    print("  │   Landing   : http://localhost:8000              │")
+    print("  │   Workspace : http://localhost:8000/workspace    │")
+    print("  │   CDP Portal: http://localhost:8000/cdp          │")
+    print("  │                                                  │")
+    print("  │   Ctrl+C de dung server                          │")
+    print("  └──────────────────────────────────────────────────┘")
     print()
     uvicorn.run(web_app, host="127.0.0.1", port=8000, reload=False)

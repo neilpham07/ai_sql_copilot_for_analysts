@@ -2291,6 +2291,1060 @@ HTML_WORKSPACE = """<!DOCTYPE html>
 </html>"""
 
 
+# ============================================================
+# [SECTION 9] CDP DATA LAYER
+# ============================================================
+
+CDP_CRITERIA_FIELDS = {
+    # --- App & Digital Engagement ---
+    "app_installed_state": {
+        "label": "App Installed State", "category": "App & Digital",
+        "type": "categorical", "operators": ["is exactly", "is not"],
+        "values": ["Installed", "Not Installed"], "sql_expr": "m.app_installed",
+    },
+    "app_last_active_days": {
+        "label": "App Last Active (Days Ago)", "category": "App & Digital",
+        "type": "numeric", "operators": ["less than", "greater than", "between"],
+        "sql_expr": "DATE_PART('day', NOW() - m.app_last_active_at)",
+    },
+    "app_session_count_30d": {
+        "label": "App Sessions (Last 30 Days)", "category": "App & Digital",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "m.app_sessions_30d",
+    },
+    "push_notification_enabled": {
+        "label": "Push Notifications Enabled", "category": "App & Digital",
+        "type": "boolean", "operators": ["is exactly"], "values": ["Yes", "No"],
+        "sql_expr": "m.push_enabled",
+    },
+    # --- Transaction Metrics ---
+    "average_order_value": {
+        "label": "Average Order Value (VND)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than", "between", "equals"],
+        "sql_expr": "AVG(t.amount)",
+    },
+    "gmv_30d": {
+        "label": "30-Day GMV (VND)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "SUM(CASE WHEN t.created_at >= NOW() - INTERVAL '30 days' AND t.status='completed' THEN t.amount ELSE 0 END)",
+    },
+    "gmv_90d": {
+        "label": "90-Day GMV (VND)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "SUM(CASE WHEN t.created_at >= NOW() - INTERVAL '90 days' AND t.status='completed' THEN t.amount ELSE 0 END)",
+    },
+    "gmv_mom_growth": {
+        "label": "GMV Month-over-Month Growth (%)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than"],
+        "sql_expr": "100.0 * (gmv_current_month - gmv_prev_month) / NULLIF(gmv_prev_month, 0)",
+    },
+    "transaction_count_30d": {
+        "label": "Transaction Count (Last 30 Days)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "COUNT(CASE WHEN t.created_at >= NOW() - INTERVAL '30 days' THEN 1 END)",
+    },
+    "transaction_failure_rate": {
+        "label": "Transaction Failure Rate (%)", "category": "Transaction",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "100.0 * COUNT(CASE WHEN t.status='failed' THEN 1 END) / NULLIF(COUNT(t.id),0)",
+    },
+    "purchase_continuity": {
+        "label": "Purchase Continuity", "category": "Transaction",
+        "type": "duration", "operators": ["last consecutive"], "unit": "Months",
+        "sql_expr": "consecutive_active_months",
+    },
+    "days_since_last_transaction": {
+        "label": "Days Since Last Transaction", "category": "Transaction",
+        "type": "numeric", "operators": ["less than", "greater than", "between"],
+        "sql_expr": "DATE_PART('day', NOW() - MAX(t.created_at))",
+    },
+    # --- Merchant Profile ---
+    "merchant_category": {
+        "label": "Merchant Category", "category": "Profile",
+        "type": "categorical", "operators": ["is exactly", "is not", "is one of"],
+        "values": ["F&B", "Retail", "Services", "E-commerce", "Grocery"],
+        "sql_expr": "m.category",
+    },
+    "merchant_region": {
+        "label": "Region / Province", "category": "Profile",
+        "type": "categorical", "operators": ["is exactly", "is one of", "is not"],
+        "values": ["TP. HCM", "Ha Noi", "Da Nang", "Binh Duong", "Can Tho", "Dong Nai", "Long An"],
+        "sql_expr": "m.region",
+    },
+    "merchant_tenure_months": {
+        "label": "Merchant Tenure (Months)", "category": "Profile",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "DATE_PART('month', AGE(NOW(), m.created_at))",
+    },
+    "merchant_tier": {
+        "label": "Merchant Tier", "category": "Profile",
+        "type": "categorical", "operators": ["is exactly", "is one of"],
+        "values": ["Gold", "Silver", "Bronze", "Standard"],
+        "sql_expr": "m.tier",
+    },
+    # --- Finance / Credit ---
+    "loan_active": {
+        "label": "Active Loan", "category": "Finance",
+        "type": "boolean", "operators": ["is exactly"], "values": ["Yes", "No"],
+        "sql_expr": "m.has_active_loan",
+    },
+    "credit_score_tier": {
+        "label": "Credit Score Tier", "category": "Finance",
+        "type": "categorical", "operators": ["is exactly", "is one of"],
+        "values": ["Tier 1 (Excellent)", "Tier 2 (Good)", "Tier 3 (Fair)", "Unscored"],
+        "sql_expr": "m.credit_tier",
+    },
+    "days_overdue": {
+        "label": "Loan Days Overdue", "category": "Finance",
+        "type": "numeric", "operators": ["equals", "greater than", "less than"],
+        "sql_expr": "m.loan_days_overdue",
+    },
+    "outstanding_loan_amount": {
+        "label": "Outstanding Loan Amount (VND)", "category": "Finance",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "m.outstanding_loan_vnd",
+    },
+    "repayment_rate": {
+        "label": "Loan Repayment Rate (%)", "category": "Finance",
+        "type": "numeric", "operators": ["greater than", "less than"],
+        "sql_expr": "m.repayment_rate_pct",
+    },
+    # --- Promo & Marketing ---
+    "voucher_redemption_count_30d": {
+        "label": "Voucher Redemptions (Last 30 Days)", "category": "Promo & Marketing",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "m.voucher_redemptions_30d",
+    },
+    "promo_response_rate": {
+        "label": "Promo Response Rate (%)", "category": "Promo & Marketing",
+        "type": "numeric", "operators": ["greater than", "less than"],
+        "sql_expr": "m.promo_response_rate_pct",
+    },
+    "sms_open_rate": {
+        "label": "SMS Open Rate (%)", "category": "Promo & Marketing",
+        "type": "numeric", "operators": ["greater than", "less than"],
+        "sql_expr": "m.sms_open_rate_pct",
+    },
+    # --- ECO PAY ---
+    "ecopay_active": {
+        "label": "ECO PAY Active", "category": "ECO PAY",
+        "type": "boolean", "operators": ["is exactly"], "values": ["Yes", "No"],
+        "sql_expr": "m.ecopay_enabled",
+    },
+    "ecopay_gmv_30d": {
+        "label": "ECO PAY GMV (Last 30 Days)", "category": "ECO PAY",
+        "type": "numeric", "operators": ["greater than", "less than", "between"],
+        "sql_expr": "m.ecopay_gmv_30d",
+    },
+    "supply_chain_orders_30d": {
+        "label": "Supply Chain Orders (Last 30 Days)", "category": "ECO PAY",
+        "type": "numeric", "operators": ["greater than", "less than"],
+        "sql_expr": "m.supply_chain_orders_30d",
+    },
+}
+
+CDP_SEGMENTS_LIBRARY = [
+    # --- Core Loyalty Tiers ---
+    {"id": "active_champions", "label": "Active Champions", "category": "Core Loyalty Tiers",
+     "description": "High-frequency, high-GMV merchants active in last 30 days",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "gmv_30d", "operator": "greater than", "value": 50000000},
+         {"field": "purchase_continuity", "operator": "last consecutive", "value": 6, "unit": "Months"},
+         {"field": "days_since_last_transaction", "operator": "less than", "value": 14},
+     ]}]}},
+    {"id": "loyal_merchants", "label": "Loyal Merchants", "category": "Core Loyalty Tiers",
+     "description": "Consistent buyers with 3+ months continuity and moderate GMV",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "purchase_continuity", "operator": "last consecutive", "value": 3, "unit": "Months"},
+         {"field": "gmv_30d", "operator": "greater than", "value": 10000000},
+     ]}]}},
+    {"id": "at_risk", "label": "At Risk", "category": "Core Loyalty Tiers",
+     "description": "Previously active merchants showing declining engagement",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "days_since_last_transaction", "operator": "greater than", "value": 30},
+         {"field": "gmv_mom_growth", "operator": "less than", "value": -20},
+     ]}]}},
+    {"id": "new_promising", "label": "New & Promising", "category": "Core Loyalty Tiers",
+     "description": "New merchants onboarded in last 3 months with fast ramp-up",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "merchant_tenure_months", "operator": "less than", "value": 3},
+         {"field": "gmv_mom_growth", "operator": "greater than", "value": 30},
+     ]}]}},
+    # --- Credit & Financial Health ---
+    {"id": "loan_whitelist_t1", "label": "Loan Whitelist Tier 1", "category": "Credit & Financial Health",
+     "description": "Pre-qualified for embedded lending — highest creditworthiness",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "credit_score_tier", "operator": "is exactly", "value": "Tier 1 (Excellent)"},
+         {"field": "loan_active", "operator": "is exactly", "value": "No"},
+         {"field": "merchant_tenure_months", "operator": "greater than", "value": 6},
+         {"field": "transaction_failure_rate", "operator": "less than", "value": 5},
+     ]}]}},
+    {"id": "loan_whitelist_t2", "label": "Loan Whitelist Tier 2", "category": "Credit & Financial Health",
+     "description": "Good credit profile eligible for working capital financing",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "credit_score_tier", "operator": "is one of", "value": ["Tier 1 (Excellent)", "Tier 2 (Good)"]},
+         {"field": "days_overdue", "operator": "equals", "value": 0},
+     ]}]}},
+    {"id": "high_risk_default", "label": "High-Risk Default", "category": "Credit & Financial Health",
+     "description": "Elevated delinquency signals — flag for collections",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "days_overdue", "operator": "greater than", "value": 30},
+         {"field": "repayment_rate", "operator": "less than", "value": 50},
+     ]}]}},
+    # --- Eco Pay & Transactional ---
+    {"id": "ecopay_champions", "label": "ECO PAY Champions", "category": "Eco Pay & Transactional",
+     "description": "Merchants fully leveraging the ECO PAY ecosystem",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "ecopay_active", "operator": "is exactly", "value": "Yes"},
+         {"field": "ecopay_gmv_30d", "operator": "greater than", "value": 20000000},
+         {"field": "supply_chain_orders_30d", "operator": "greater than", "value": 5},
+     ]}]}},
+    {"id": "high_failure_rate", "label": "High Failure Rate", "category": "Eco Pay & Transactional",
+     "description": "Merchants with elevated transaction failure requiring intervention",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "transaction_failure_rate", "operator": "greater than", "value": 15},
+         {"field": "transaction_count_30d", "operator": "greater than", "value": 10},
+     ]}]}},
+    # --- Promo & App Engagement ---
+    {"id": "deal_hunters", "label": "Deal Hunters", "category": "Promo & App Engagement",
+     "description": "Promo-responsive merchants with high voucher redemption",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "voucher_redemption_count_30d", "operator": "greater than", "value": 3},
+         {"field": "promo_response_rate", "operator": "greater than", "value": 40},
+     ]}]}},
+    {"id": "app_champions", "label": "App Champions", "category": "Promo & App Engagement",
+     "description": "Highly engaged app users with frequent sessions",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "app_installed_state", "operator": "is exactly", "value": "Installed"},
+         {"field": "app_session_count_30d", "operator": "greater than", "value": 15},
+         {"field": "push_notification_enabled", "operator": "is exactly", "value": "Yes"},
+     ]}]}},
+    {"id": "sms_responsive", "label": "SMS Responsive", "category": "Promo & App Engagement",
+     "description": "Merchants highly responsive to SMS campaigns",
+     "filters": {"operator": "AND", "groups": [{"operator": "AND", "criteria": [
+         {"field": "sms_open_rate", "operator": "greater than", "value": 60},
+     ]}]}},
+]
+
+
+def format_cdp_fields(fields: dict) -> str:
+    lines = []
+    for key, meta in fields.items():
+        ops = ", ".join(meta["operators"])
+        vals = ""
+        if "values" in meta:
+            vals = f" | values: {meta['values']}"
+        lines.append(f"  {key} ({meta['type']}, operators: [{ops}]{vals}): {meta['label']}")
+    return "\n".join(lines)
+
+
+CDP_NL_SYSTEM_PROMPT = f"""You are QueryMind AI CDP, an expert in merchant data segmentation for Finviet's 100,000+ retail merchant network.
+Your job is to translate Vietnamese segment descriptions into structured filter JSON.
+
+AVAILABLE FILTER FIELDS (use ONLY these exact field names):
+{format_cdp_fields(CDP_CRITERIA_FIELDS)}
+
+OPERATORS BY TYPE:
+- numeric: "greater than", "less than", "between", "equals"
+- categorical: "is exactly", "is not", "is one of"
+- boolean: "is exactly" (values: "Yes", "No")
+- duration: "last consecutive" (requires "unit": "Months" or "Days")
+
+OUTPUT FORMAT — Return ONLY valid JSON, no prose, no markdown fencing:
+{{"filters": {{"operator": "AND", "groups": [{{"operator": "AND", "criteria": [{{"field": "<name>", "operator": "<op>", "value": <val>}}]}}]}}, "confidence": 0.85}}
+
+RULES:
+1. Map natural language to the closest matching field from the list above ONLY.
+2. Use "AND" by default. Use "OR" only when description implies alternatives.
+3. Convert Vietnamese currency (e.g. "50 trieu" = 50000000, "1 ty" = 1000000000).
+4. Confidence 0.7-1.0 based on how precisely input maps to available fields.
+5. Do NOT invent field names not in the list above.
+"""
+
+
+# ============================================================
+# [SECTION 10] CDP BACKEND LOGIC
+# ============================================================
+
+_OPERATOR_MAP = {
+    "greater than": ">", "less than": "<", "equals": "=",
+    "is exactly": "=", "is not": "!=",
+}
+
+_PREVIEW_MERCHANTS = [
+    {"merchant_store": "Tap Hoa Co Mai", "region": "TP. HCM", "segment_tag": "Active Champion", "gmv_30d": 4210000, "cdp_status": "Excellent"},
+    {"merchant_store": "Nguyen Thi Thu", "region": "Ha Noi", "segment_tag": "Loyal", "gmv_30d": 2850000, "cdp_status": "Good"},
+    {"merchant_store": "Bui Van Long", "region": "Da Nang", "segment_tag": "Promising", "gmv_30d": 1420000, "cdp_status": "Good"},
+    {"merchant_store": "Pham Thi Hoa", "region": "Binh Duong", "segment_tag": "New", "gmv_30d": 980000, "cdp_status": "Standard"},
+    {"merchant_store": "Tran Minh Duc", "region": "Can Tho", "segment_tag": "At Risk", "gmv_30d": 340000, "cdp_status": "Watch"},
+]
+
+
+def _count_criteria(filters: dict) -> int:
+    total = 0
+    for group in filters.get("groups", []):
+        total += len(group.get("criteria", []))
+    return max(total, 1)
+
+
+def _build_criterion_sql(c: dict) -> str:
+    field = c.get("field", "")
+    op = c.get("operator", "")
+    val = c.get("value")
+    field_meta = CDP_CRITERIA_FIELDS.get(field)
+    if not field_meta:
+        raise ValueError(f"Unknown field: {field}")
+    expr = field_meta["sql_expr"]
+
+    if op == "between":
+        vals = val if isinstance(val, list) else [val, val]
+        return f"({expr} BETWEEN {vals[0]} AND {vals[1]})"
+    elif op == "is one of":
+        items = val if isinstance(val, list) else [val]
+        quoted = ", ".join(f"'{v}'" for v in items)
+        return f"({expr} IN ({quoted}))"
+    elif op == "last consecutive":
+        return f"({expr} >= {val})"
+    elif op in ("is exactly", "is not", "equals", "greater than", "less than"):
+        sql_op = _OPERATOR_MAP.get(op, "=")
+        if isinstance(val, str):
+            return f"({expr} {sql_op} '{val}')"
+        return f"({expr} {sql_op} {val})"
+    else:
+        return f"(1=1)"
+
+
+def build_sql_from_filters(filters: dict) -> str:
+    group_clauses = []
+    for group in filters.get("groups", []):
+        criteria_clauses = []
+        for c in group.get("criteria", []):
+            criteria_clauses.append(_build_criterion_sql(c))
+        if criteria_clauses:
+            join_op = f" {group.get('operator', 'AND')} "
+            group_clauses.append("(" + join_op.join(criteria_clauses) + ")")
+    if not group_clauses:
+        return "1=1"
+    top_op = f" {filters.get('operator', 'AND')} "
+    return top_op.join(group_clauses)
+
+
+def estimate_audience_sql(filters: dict) -> str:
+    where = build_sql_from_filters(filters)
+    return (
+        "-- Generated by QueryMind AI CDP\n"
+        "SELECT\n"
+        "    COUNT(DISTINCT m.id) AS audience_size,\n"
+        "    ROUND(100.0 * COUNT(DISTINCT m.id) / (SELECT COUNT(*) FROM merchants), 1) AS coverage_pct\n"
+        "FROM merchants m\n"
+        "LEFT JOIN transactions t ON t.merchant_id = m.id\n"
+        f"WHERE {where}"
+    )
+
+
+def simulate_audience_estimate(filters: dict) -> dict:
+    n = _count_criteria(filters)
+    base = 100_000
+    estimated = int(base * (0.62 ** n))
+    estimated = max(500, min(estimated, 94_000))
+    delta = round(((estimated * 7) % 300) / 10, 1)
+    return {
+        "audience_size": estimated,
+        "total_merchants": base,
+        "coverage_pct": round(100.0 * estimated / base, 1),
+        "reach_reliability": round(min(99.9, 94 + n * 0.8), 1),
+        "forecasted_conversion": round(min(45.0, 11 + n * 2.1), 1),
+        "delta_pct": delta,
+    }
+
+
+def parse_filter_json_from_response(raw: str) -> dict:
+    import json
+    raw = raw.strip()
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if match:
+        return json.loads(match.group(0))
+    raise ValueError("No JSON object found in Claude response")
+
+
+# ============================================================
+# [SECTION 12] HTML_CDP — CDP Portal Page
+# ============================================================
+HTML_CDP = """<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finviet CDP &#8212; Customer Data Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-base:#0B1020; --bg-surface:#0e1323; --bg-surface-low:#161b2b;
+      --bg-surface-mid:#1a1f30; --bg-surface-high:#25293a;
+      --text-primary:#dee1f9; --text-secondary:#bbc9cd;
+      --cyan-mid:#22d3ee; --cyan-primary:#8aebff;
+      --violet-deep:#8b5cf6; --violet-primary:#d0bcff;
+      --success-green:#4ade80; --error:#ffb4ab;
+      --border-subtle:rgba(255,255,255,0.08); --border-elevated:rgba(255,255,255,0.15);
+      --gradient-cta:linear-gradient(135deg,#22d3ee 0%,#8b5cf6 100%);
+      --radius-sm:4px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-full:9999px;
+    }
+    body { background:#0B1020; color:#dee1f9; font-family:Inter,sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+    /* ── Header ── */
+    .cdp-header {
+      height:60px; display:flex; align-items:center; justify-content:space-between;
+      padding:0 24px; background:rgba(11,16,32,0.95); border-bottom:1px solid rgba(255,255,255,0.06);
+      backdrop-filter:blur(16px); flex-shrink:0; z-index:100;
+    }
+    .cdp-logo { display:flex; align-items:center; gap:10px; }
+    .cdp-logo-text { font-size:17px; font-weight:700; color:#dee1f9; }
+    .cdp-logo-badge {
+      font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#22d3ee; background:rgba(34,211,238,0.1);
+      border:1px solid rgba(34,211,238,0.25); border-radius:var(--radius-full); padding:3px 8px;
+    }
+    .cdp-nav { display:flex; gap:4px; }
+    .cdp-nav-item {
+      padding:6px 16px; border-radius:var(--radius-full); font-size:14px; font-weight:500;
+      color:#bbc9cd; cursor:pointer; transition:all 0.2s; border:none; background:transparent;
+    }
+    .cdp-nav-item.active { background:var(--gradient-cta); color:#000; font-weight:600; }
+    .cdp-nav-item:hover:not(.active) { color:#dee1f9; background:rgba(255,255,255,0.06); }
+    .cdp-header-actions { display:flex; gap:10px; align-items:center; }
+    .btn-save-draft {
+      padding:8px 18px; border-radius:var(--radius-lg); font-size:14px; font-weight:500;
+      color:#dee1f9; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);
+      cursor:pointer; transition:all 0.2s;
+    }
+    .btn-save-draft:hover { background:rgba(255,255,255,0.1); }
+    .btn-deploy {
+      padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:600;
+      color:#000; background:var(--gradient-cta); border:none; cursor:pointer;
+      transition:transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-deploy:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(34,211,238,0.3); }
+
+    /* ── Shell ── */
+    .cdp-shell { display:flex; flex:1; overflow:hidden; }
+
+    /* ── Sidebar ── */
+    .cdp-sidebar {
+      width:260px; min-width:220px; background:rgba(14,19,35,0.95);
+      border-right:1px solid rgba(255,255,255,0.06);
+      display:flex; flex-direction:column; overflow-y:auto; flex-shrink:0;
+    }
+    .sidebar-section-title {
+      padding:16px 16px 8px; font-size:11px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#4a5568; font-family:'Geist Mono',monospace;
+    }
+    .sidebar-badge {
+      display:inline-block; font-family:'Geist Mono',monospace; font-size:10px; font-weight:600;
+      color:#4ade80; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.2);
+      border-radius:var(--radius-full); padding:2px 8px; margin-left:6px;
+    }
+    .seg-category { padding:6px 12px; }
+    .seg-category-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 8px; border-radius:8px; cursor:pointer; transition:background 0.15s;
+      font-size:13px; font-weight:500; color:#bbc9cd;
+    }
+    .seg-category-header:hover { background:rgba(255,255,255,0.04); }
+    .seg-category-header .chevron { transition:transform 0.2s; font-size:10px; }
+    .seg-category-header.open .chevron { transform:rotate(90deg); }
+    .seg-items { padding-left:8px; display:none; }
+    .seg-items.open { display:block; }
+    .seg-item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s;
+      font-size:13px; color:#bbc9cd;
+    }
+    .seg-item:hover { background:rgba(34,211,238,0.06); color:#8aebff; }
+    .seg-item.active { background:rgba(34,211,238,0.1); color:#22d3ee; }
+    .seg-count {
+      font-family:'Geist Mono',monospace; font-size:10px; color:#4a5568;
+      background:rgba(255,255,255,0.06); border-radius:4px; padding:1px 5px;
+    }
+    .sidebar-footer { margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.06); }
+    .db-status-badge {
+      display:flex; align-items:center; gap:8px; padding:10px 14px;
+      background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); border-radius:12px;
+    }
+    .pulse-dot {
+      width:8px; height:8px; background:#4ade80; border-radius:50%;
+      animation:pulse 2s infinite; flex-shrink:0;
+    }
+    @keyframes pulse {
+      0% { box-shadow:0 0 0 0 rgba(74,222,128,0.5); }
+      70% { box-shadow:0 0 0 6px rgba(74,222,128,0); }
+      100% { box-shadow:0 0 0 0 rgba(74,222,128,0); }
+    }
+    .db-status-text { font-size:12px; font-weight:600; color:#dee1f9; }
+    .db-status-sub { font-family:'Geist Mono',monospace; font-size:10px; color:#4ade80; text-transform:uppercase; letter-spacing:0.06em; }
+
+    /* ── Main workspace ── */
+    .cdp-main { flex:1; overflow-y:auto; padding:24px 28px; display:flex; gap:24px; }
+    .cdp-left-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:20px; }
+    .cdp-right-col { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:16px; }
+
+    /* ── NLP input card ── */
+    .nl-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px 24px;
+    }
+    .nl-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .nl-card-title { font-size:15px; font-weight:600; color:#dee1f9; }
+    .ai-badge {
+      font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#22d3ee; background:rgba(34,211,238,0.1);
+      border:1px solid rgba(34,211,238,0.2); border-radius:var(--radius-full); padding:3px 10px;
+    }
+    .nl-input-wrap { display:flex; gap:10px; align-items:flex-start; }
+    .nl-textarea {
+      flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:var(--radius-lg); color:#dee1f9; font-family:Inter,sans-serif;
+      font-size:14px; padding:12px 16px; resize:none; height:60px;
+      transition:border-color 0.2s, box-shadow 0.2s; outline:none;
+    }
+    .nl-textarea:focus {
+      border-color:rgba(34,211,238,0.4);
+      box-shadow:0 0 0 2px rgba(34,211,238,0.08);
+    }
+    .nl-textarea::placeholder { color:#4a5568; }
+    .btn-qualify {
+      padding:10px 18px; border-radius:var(--radius-lg); font-size:13px; font-weight:600;
+      color:#000; background:var(--gradient-cta); border:none; cursor:pointer;
+      white-space:nowrap; transition:transform 0.2s, box-shadow 0.2s; flex-shrink:0;
+    }
+    .btn-qualify:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(34,211,238,0.3); }
+    .btn-qualify:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+    /* ── Rule builder card ── */
+    .rule-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px 24px;
+    }
+    .rule-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .rule-card-title { font-size:15px; font-weight:600; color:#dee1f9; }
+    .logic-toggle { display:flex; gap:4px; background:rgba(255,255,255,0.04); border-radius:var(--radius-full); padding:3px; border:1px solid rgba(255,255,255,0.08); }
+    .logic-btn {
+      padding:4px 14px; border-radius:var(--radius-full); font-size:12px; font-weight:600;
+      font-family:'Geist Mono',monospace; cursor:pointer; border:none; background:transparent;
+      color:#bbc9cd; transition:all 0.2s;
+    }
+    .logic-btn.active { background:var(--gradient-cta); color:#000; }
+
+    /* ── Criteria rows ── */
+    .criteria-group { display:flex; flex-direction:column; gap:8px; }
+    .criteria-row {
+      display:flex; align-items:center; gap:8px; padding:10px 14px;
+      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+      border-radius:var(--radius-md); transition:border-color 0.2s;
+    }
+    .criteria-row:hover { border-color:rgba(255,255,255,0.1); }
+    .criteria-select {
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; color:#dee1f9; font-size:13px; padding:6px 10px;
+      outline:none; cursor:pointer; font-family:Inter,sans-serif;
+    }
+    .criteria-select.field-select { flex:2; min-width:0; }
+    .criteria-select.op-select { flex:1.5; min-width:0; }
+    .criteria-input {
+      flex:1.5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; color:#dee1f9; font-size:13px; padding:6px 10px;
+      outline:none; font-family:Inter,sans-serif; min-width:0;
+    }
+    .criteria-input:focus, .criteria-select:focus { border-color:rgba(34,211,238,0.35); }
+    .btn-delete-row {
+      width:28px; height:28px; border-radius:6px; background:rgba(255,100,100,0.08);
+      border:1px solid rgba(255,100,100,0.15); color:#ffb4ab; font-size:14px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:background 0.2s; flex-shrink:0;
+    }
+    .btn-delete-row:hover { background:rgba(255,100,100,0.18); }
+
+    .rule-actions { display:flex; gap:10px; margin-top:12px; }
+    .btn-add-row {
+      display:flex; align-items:center; gap:6px; padding:8px 16px;
+      border-radius:var(--radius-md); font-size:13px; font-weight:500; color:#22d3ee;
+      background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.2);
+      cursor:pointer; transition:background 0.2s;
+    }
+    .btn-add-row:hover { background:rgba(34,211,238,0.12); }
+
+    /* ── Audience estimation panel ── */
+    .est-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px;
+    }
+    .est-title { font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#4a5568; margin-bottom:16px; }
+    .est-number { font-size:40px; font-weight:700; color:#dee1f9; line-height:1; }
+    .est-label { font-size:13px; color:#bbc9cd; margin-top:4px; }
+    .est-delta { font-size:12px; color:#4ade80; margin-top:2px; }
+    .est-divider { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:14px 0; }
+    .est-metric { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .est-metric-label { font-size:13px; color:#bbc9cd; }
+    .est-metric-value { font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:#22d3ee; }
+    .est-loading { display:none; text-align:center; padding:12px 0; color:#4a5568; font-size:13px; }
+    .est-placeholder { text-align:center; padding:20px 0; color:#4a5568; font-size:13px; }
+
+    /* ── Preview table ── */
+    .preview-card {
+      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+      border-radius:var(--radius-xl); overflow:hidden; margin-top:4px;
+    }
+    .preview-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .preview-title { font-size:14px; font-weight:600; color:#dee1f9; }
+    .preview-link { font-size:13px; color:#22d3ee; cursor:pointer; text-decoration:none; }
+    .preview-table { width:100%; border-collapse:collapse; }
+    .preview-table th {
+      padding:10px 16px; font-family:'Geist Mono',monospace; font-size:11px; font-weight:600;
+      letter-spacing:0.06em; text-transform:uppercase; color:#4a5568;
+      border-bottom:1px solid rgba(255,255,255,0.06); text-align:left;
+    }
+    .preview-table td { padding:12px 16px; font-size:13px; color:#bbc9cd; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .preview-table tr:last-child td { border-bottom:none; }
+    .preview-table tr:hover td { background:rgba(255,255,255,0.02); }
+    .tag-pill {
+      display:inline-block; padding:2px 10px; border-radius:var(--radius-full); font-size:11px; font-weight:600;
+      background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.2); color:#22d3ee;
+      font-family:'Geist Mono',monospace; white-space:nowrap;
+    }
+    .status-excellent { color:#4ade80; }
+    .status-good { color:#86efac; }
+    .status-standard { color:#bbc9cd; }
+    .status-watch { color:#fbbf24; }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+      background:rgba(34,211,238,0.15); border:1px solid rgba(34,211,238,0.3);
+      color:#dee1f9; padding:10px 20px; border-radius:var(--radius-full);
+      font-size:14px; font-weight:500; z-index:999; transition:transform 0.3s ease;
+      backdrop-filter:blur(12px); white-space:nowrap;
+    }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="cdp-header">
+  <div class="cdp-logo">
+    <span class="cdp-logo-text">Finviet CDP</span>
+    <span class="cdp-logo-badge">v3.5 Stable</span>
+  </div>
+  <nav class="cdp-nav">
+    <button class="cdp-nav-item active">Library</button>
+    <a href="/workspace" class="cdp-nav-item" style="text-decoration:none;">SQL Workspace</a>
+    <button class="cdp-nav-item">Audiences</button>
+    <button class="cdp-nav-item">Analytics</button>
+  </nav>
+  <div class="cdp-header-actions">
+    <button class="btn-save-draft" onclick="doLogout()" style="color:#bbc9cd;">Sign out</button>
+    <button class="btn-save-draft" onclick="showToast('Draft saved!')">Save Draft</button>
+    <button class="btn-deploy" onclick="deploySegment()">Deploy Segment &#8594;</button>
+  </div>
+</header>
+
+<!-- Shell -->
+<div class="cdp-shell">
+
+  <!-- Sidebar -->
+  <aside class="cdp-sidebar" id="cdp-sidebar">
+    <div class="sidebar-section-title">BI Segment Library <span class="sidebar-badge">v2.4</span></div>
+    <div id="seg-tree"></div>
+    <div class="sidebar-footer">
+      <div class="db-status-badge">
+        <div class="pulse-dot"></div>
+        <div>
+          <div class="db-status-text">Connected to Production DB</div>
+          <div class="db-status-sub">Live Sync Enabled</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="cdp-main">
+    <div class="cdp-left-col">
+
+      <!-- NLP Input -->
+      <div class="nl-card">
+        <div class="nl-card-header">
+          <span class="nl-card-title">Describe your merchant segment</span>
+          <span class="ai-badge">&#10022; Qualifying AI</span>
+        </div>
+        <div class="nl-input-wrap">
+          <textarea id="nl-input" class="nl-textarea"
+            placeholder="e.g. Find merchants in TP. HCM active for 6+ months with GMV &gt; 50M and low transaction failure rate..."></textarea>
+          <button id="btn-qualify" class="btn-qualify" onclick="runNL()">&#10024; Qualify</button>
+        </div>
+      </div>
+
+      <!-- Rule Builder -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-card-title">Advanced Rule Logic</span>
+          <div class="logic-toggle">
+            <button class="logic-btn active" id="logic-and" onclick="setLogic('AND')">AND</button>
+            <button class="logic-btn" id="logic-or" onclick="setLogic('OR')">OR</button>
+          </div>
+        </div>
+        <div class="criteria-group" id="criteria-group"></div>
+        <div class="rule-actions">
+          <button class="btn-add-row" onclick="addCriteriaRow()">&#43; Add Criteria Row</button>
+          <button class="btn-add-row" onclick="addCriteriaRow()">&#43; Add Condition Group</button>
+        </div>
+      </div>
+
+      <!-- Merchant Preview Table -->
+      <div class="preview-card" id="preview-card" style="display:none">
+        <div class="preview-header">
+          <span class="preview-title">Merchant Data Preview</span>
+          <span class="preview-link">View all &#8594;</span>
+        </div>
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Merchant Store</th><th>Region</th><th>Segment Tag</th><th>30D GMV</th><th>CDP Status</th>
+            </tr>
+          </thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /left col -->
+
+    <!-- Right col: Estimation -->
+    <div class="cdp-right-col">
+      <div class="est-card">
+        <div class="est-title">Target Audience Estimation</div>
+        <div id="est-placeholder" class="est-placeholder">Add criteria to see<br>audience estimate</div>
+        <div id="est-results" style="display:none">
+          <div class="est-number" id="est-number">0</div>
+          <div class="est-label">Merchants</div>
+          <div class="est-delta" id="est-delta"></div>
+          <hr class="est-divider">
+          <div class="est-metric">
+            <span class="est-metric-label">Reach Reliability</span>
+            <span class="est-metric-value" id="est-reliability">-</span>
+          </div>
+          <div class="est-metric">
+            <span class="est-metric-label">Forecasted Conversion</span>
+            <span class="est-metric-value" id="est-conversion">-</span>
+          </div>
+          <div class="est-metric">
+            <span class="est-metric-label">Coverage</span>
+            <span class="est-metric-value" id="est-coverage">-</span>
+          </div>
+        </div>
+        <div id="est-loading" class="est-loading">Calculating&#8230;</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== AUTH GUARD =====
+  if (!sessionStorage.getItem('qm_auth')) { window.location.href = '/'; }
+  function doLogout() { sessionStorage.removeItem('qm_auth'); window.location.href = '/'; }
+
+  // ===== STATE =====
+  let currentLogic = 'AND';
+  let criteriaFields = {};
+  let segments = [];
+  let debounceTimer = null;
+  let rowId = 0;
+
+  // ===== INIT =====
+  async function init() {
+    try {
+      const [fRes, sRes] = await Promise.all([
+        fetch('/api/cdp/criteria_fields'),
+        fetch('/api/cdp/segments'),
+      ]);
+      const fData = await fRes.json();
+      const sData = await sRes.json();
+      criteriaFields = fData.fields || {};
+      segments = sData.segments || [];
+      renderSidebar();
+      addCriteriaRow();
+    } catch(e) {
+      showToast('Error loading CDP data: ' + e.message);
+    }
+  }
+
+  // ===== SIDEBAR RENDER =====
+  function renderSidebar() {
+    const categories = {};
+    segments.forEach(s => {
+      if (!categories[s.category]) categories[s.category] = [];
+      categories[s.category].push(s);
+    });
+    const tree = document.getElementById('seg-tree');
+    tree.innerHTML = '';
+    Object.entries(categories).forEach(([cat, segs]) => {
+      const catEl = document.createElement('div');
+      catEl.className = 'seg-category';
+      catEl.innerHTML = `
+        <div class="seg-category-header open" onclick="toggleCategory(this)">
+          <span>${cat}</span>
+          <span class="chevron">&#9658;</span>
+        </div>
+        <div class="seg-items open">
+          ${segs.map(s => `
+            <div class="seg-item" data-id="${s.id}" onclick="loadSegment('${s.id}')">
+              <span>${s.label}</span>
+              <span class="seg-count">${Math.floor(Math.random()*20+5)}k</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      tree.appendChild(catEl);
+    });
+  }
+
+  function toggleCategory(header) {
+    header.classList.toggle('open');
+    header.nextElementSibling.classList.toggle('open');
+  }
+
+  // ===== SEGMENT LIBRARY LOAD =====
+  function loadSegment(id) {
+    const seg = segments.find(s => s.id === id);
+    if (!seg) return;
+    document.querySelectorAll('.seg-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-id="${id}"]`).classList.add('active');
+    document.getElementById('criteria-group').innerHTML = '';
+    rowId = 0;
+    const groups = seg.filters.groups || [];
+    groups.forEach(group => {
+      (group.criteria || []).forEach(c => addCriteriaRow(c));
+    });
+    currentLogic = seg.filters.operator || 'AND';
+    document.getElementById('logic-and').classList.toggle('active', currentLogic === 'AND');
+    document.getElementById('logic-or').classList.toggle('active', currentLogic === 'OR');
+    triggerEstimate();
+  }
+
+  // ===== LOGIC TOGGLE =====
+  function setLogic(op) {
+    currentLogic = op;
+    document.getElementById('logic-and').classList.toggle('active', op === 'AND');
+    document.getElementById('logic-or').classList.toggle('active', op === 'OR');
+    triggerEstimate();
+  }
+
+  // ===== CRITERIA ROWS =====
+  function addCriteriaRow(preset) {
+    const id = ++rowId;
+    const container = document.getElementById('criteria-group');
+    const row = document.createElement('div');
+    row.className = 'criteria-row';
+    row.dataset.rowId = id;
+
+    const fieldOptions = Object.entries(criteriaFields).map(([k, v]) =>
+      `<option value="${k}" ${preset && preset.field === k ? 'selected' : ''}>${v.label}</option>`
+    ).join('');
+
+    row.innerHTML = `
+      <select class="criteria-select field-select" onchange="onFieldChange(this, ${id})">
+        <option value="">Select field&#8230;</option>
+        ${fieldOptions}
+      </select>
+      <select class="criteria-select op-select" id="op-${id}">
+        <option value="">&#8212;</option>
+      </select>
+      <input type="text" class="criteria-input" id="val-${id}" placeholder="Value&#8230;" oninput="triggerEstimate()">
+      <button class="btn-delete-row" onclick="removeRow(${id})" title="Remove">&#215;</button>
+    `;
+    container.appendChild(row);
+
+    if (preset && preset.field) {
+      const fieldSel = row.querySelector('.field-select');
+      fieldSel.value = preset.field;
+      populateOperators(id, preset.field, preset.operator);
+      document.getElementById('val-' + id).value = Array.isArray(preset.value)
+        ? preset.value.join(', ') : (preset.value ?? '');
+    }
+  }
+
+  function onFieldChange(select, id) {
+    const field = select.value;
+    populateOperators(id, field, null);
+    triggerEstimate();
+  }
+
+  function populateOperators(rowId, fieldKey, selectedOp) {
+    const opSel = document.getElementById('op-' + rowId);
+    if (!opSel) return;
+    const meta = criteriaFields[fieldKey];
+    if (!meta) { opSel.innerHTML = '<option>&#8212;</option>'; return; }
+    opSel.innerHTML = meta.operators.map(op =>
+      `<option value="${op}" ${selectedOp === op ? 'selected' : ''}>${op}</option>`
+    ).join('');
+    opSel.onchange = () => triggerEstimate();
+  }
+
+  function removeRow(id) {
+    const row = document.querySelector(`[data-row-id="${id}"]`);
+    if (row) row.remove();
+    triggerEstimate();
+  }
+
+  // ===== BUILD FILTER PAYLOAD =====
+  function buildFilters() {
+    const rows = document.querySelectorAll('.criteria-row');
+    const criteria = [];
+    rows.forEach(row => {
+      const id = row.dataset.rowId;
+      const field = row.querySelector('.field-select').value;
+      const op = document.getElementById('op-' + id)?.value;
+      const val = document.getElementById('val-' + id)?.value.trim();
+      if (field && op && val !== '') {
+        const meta = criteriaFields[field];
+        let value = val;
+        if (meta && meta.type === 'numeric') {
+          value = parseFloat(val.replace(/,/g, '')) || 0;
+        } else if (meta && meta.type === 'boolean') {
+          value = val;
+        } else if (op === 'is one of') {
+          value = val.split(',').map(v => v.trim());
+        }
+        criteria.push({ field, operator: op, value });
+      }
+    });
+    return {
+      operator: currentLogic,
+      groups: criteria.length ? [{ operator: 'AND', criteria }] : []
+    };
+  }
+
+  // ===== ESTIMATE =====
+  function triggerEstimate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runEstimate, 500);
+  }
+
+  async function runEstimate() {
+    const filters = buildFilters();
+    if (!filters.groups.length) {
+      document.getElementById('est-placeholder').style.display = '';
+      document.getElementById('est-results').style.display = 'none';
+      document.getElementById('preview-card').style.display = 'none';
+      return;
+    }
+    document.getElementById('est-loading').style.display = 'block';
+    document.getElementById('est-results').style.display = 'none';
+    document.getElementById('est-placeholder').style.display = 'none';
+    try {
+      const res = await fetch('/api/cdp/segment/estimate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ filters, preview_rows: 5 })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      renderEstimate(data);
+    } catch(e) {
+      showToast('Estimate error: ' + e.message);
+    } finally {
+      document.getElementById('est-loading').style.display = 'none';
+    }
+  }
+
+  function renderEstimate(data) {
+    document.getElementById('est-number').textContent = data.audience_size.toLocaleString();
+    document.getElementById('est-delta').textContent = '+' + data.delta_pct + '% vs last calculation';
+    document.getElementById('est-reliability').textContent = data.reach_reliability + '%';
+    document.getElementById('est-conversion').textContent = '+' + data.forecasted_conversion + '%';
+    document.getElementById('est-coverage').textContent = data.coverage_pct + '%';
+    document.getElementById('est-results').style.display = 'block';
+    renderPreview(data.merchant_preview || []);
+  }
+
+  function renderPreview(rows) {
+    if (!rows.length) return;
+    const tbody = document.getElementById('preview-tbody');
+    tbody.innerHTML = rows.map(r => {
+      const statusClass = 'status-' + (r.cdp_status || 'standard').toLowerCase();
+      return `<tr>
+        <td>${r.merchant_store}</td>
+        <td>${r.region}</td>
+        <td><span class="tag-pill">${r.segment_tag}</span></td>
+        <td>${(r.gmv_30d/1000000).toFixed(1)}M</td>
+        <td class="${statusClass}">${r.cdp_status}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('preview-card').style.display = 'block';
+  }
+
+  // ===== NLP =====
+  async function runNL() {
+    const desc = document.getElementById('nl-input').value.trim();
+    if (!desc) { showToast('Please describe your segment first'); return; }
+    const btn = document.getElementById('btn-qualify');
+    btn.disabled = true; btn.textContent = 'Qualifying...';
+    try {
+      const res = await fetch('/api/cdp/nl_to_filters', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ description: desc })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const filters = data.filters;
+      document.getElementById('criteria-group').innerHTML = '';
+      rowId = 0;
+      const groups = filters.groups || [];
+      groups.forEach(group => {
+        (group.criteria || []).forEach(c => addCriteriaRow(c));
+      });
+      currentLogic = filters.operator || 'AND';
+      document.getElementById('logic-and').classList.toggle('active', currentLogic === 'AND');
+      document.getElementById('logic-or').classList.toggle('active', currentLogic === 'OR');
+      showToast('&#10003; Filters populated from AI (' + Math.round((data.confidence||0.85)*100) + '% confidence)');
+      triggerEstimate();
+    } catch(e) {
+      showToast('AI error: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '&#10024; Qualify';
+    }
+  }
+
+  // ===== DEPLOY =====
+  async function deploySegment() {
+    const filters = buildFilters();
+    if (!filters.groups.length) { showToast('Add at least one criteria to deploy'); return; }
+    showToast('&#10003; Segment deployed to production!');
+  }
+
+  // ===== TOAST =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerHTML = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  init();
+</script>
+</body>
+</html>"""
+
+
 @app.function(
     secrets=[modal.Secret.from_name("anthropic-api-key")],
 )
@@ -2338,6 +3392,48 @@ def fastapi_app():
             raw = call_claude(EXPLAIN_SYSTEM_PROMPT, sql_input)
             steps = parse_steps_from_response(raw)
             return JSONResponse({"steps": steps, "mode": "explain"})
+        except Exception as e:
+            return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
+    # ── CDP routes ────────────────────────────────────────────
+    @web_app.get("/cdp", response_class=HTMLResponse)
+    async def serve_cdp():
+        return HTMLResponse(content=HTML_CDP)
+
+    @web_app.get("/api/cdp/segments")
+    async def api_cdp_segments():
+        return JSONResponse({"segments": CDP_SEGMENTS_LIBRARY})
+
+    @web_app.get("/api/cdp/criteria_fields")
+    async def api_cdp_criteria_fields():
+        return JSONResponse({"fields": CDP_CRITERIA_FIELDS})
+
+    @web_app.post("/api/cdp/segment/estimate")
+    async def api_cdp_estimate(request: Request):
+        try:
+            body = await request.json()
+            filters = body.get("filters")
+            if not filters or not filters.get("groups"):
+                return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
+            sql = estimate_audience_sql(filters)
+            est = simulate_audience_estimate(filters)
+            preview = _PREVIEW_MERCHANTS[:body.get("preview_rows", 5)]
+            return JSONResponse({**est, "generated_sql": sql, "merchant_preview": preview, "mode": "cdp_estimate"})
+        except ValueError as e:
+            return JSONResponse({"error": str(e), "code": 400}, status_code=400)
+        except Exception as e:
+            return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
+    @web_app.post("/api/cdp/nl_to_filters")
+    async def api_cdp_nl(request: Request):
+        try:
+            body = await request.json()
+            description = body.get("description", "").strip()
+            if not description:
+                return JSONResponse({"error": "Missing 'description' field", "code": 400}, status_code=400)
+            raw = call_claude(CDP_NL_SYSTEM_PROMPT, description)
+            parsed = parse_filter_json_from_response(raw)
+            return JSONResponse({**parsed, "mode": "nl_to_filters"})
         except Exception as e:
             return JSONResponse({"error": str(e), "code": 500}, status_code=500)
 

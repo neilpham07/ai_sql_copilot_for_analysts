@@ -554,13 +554,165 @@
       text-decoration: none; transition: color 0.2s;
     }
     .footer-links a:hover { color: var(--text-secondary); }
+
+    /* ===========================
+       LOGIN OVERLAY
+    =========================== */
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 999;
+      background: rgba(7, 11, 22, 0.75);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.35s ease;
+    }
+    .login-overlay.hidden {
+      opacity: 0; pointer-events: none;
+    }
+
+    .login-modal {
+      background: rgba(20, 26, 44, 0.96);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255,255,255,0.18);
+      border-radius: var(--radius-xl);
+      padding: 44px 48px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 60px rgba(34,211,238,0.06);
+      animation: modal-in 0.3s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    .login-logo-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; margin-bottom: 28px;
+    }
+    .login-logo-text { font-size: 18px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }
+
+    .login-heading {
+      font-size: 24px; font-weight: 700;
+      color: var(--text-primary); text-align: center;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    .login-sub {
+      font-size: 14px; color: var(--text-secondary);
+      text-align: center; margin-bottom: 32px; line-height: 1.5;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block; font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); margin-bottom: 7px;
+      font-family: 'Geist Mono', monospace;
+    }
+    .form-input {
+      width: 100%; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-md); color: var(--text-primary);
+      font-family: 'Inter', sans-serif; font-size: 15px;
+      padding: 13px 16px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      border-color: rgba(34,211,238,0.45);
+      box-shadow: 0 0 0 3px rgba(34,211,238,0.09);
+    }
+    .form-input::placeholder { color: rgba(187,201,205,0.35); }
+    .form-input.shake {
+      animation: shake 0.4s ease;
+      border-color: rgba(255,100,100,0.6) !important;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-8px); }
+      40%      { transform: translateX(8px); }
+      60%      { transform: translateX(-5px); }
+      80%      { transform: translateX(5px); }
+    }
+
+    .login-error {
+      font-size: 12px; color: #ffb4ab;
+      margin-top: 6px; display: none;
+    }
+    .login-error.visible { display: block; }
+
+    .btn-login {
+      width: 100%; padding: 14px;
+      background: var(--gradient-cta);
+      border: none; border-radius: var(--radius-lg);
+      color: #020617; font-size: 15px; font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer; margin-top: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      letter-spacing: -0.01em;
+    }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(34,211,238,0.38); }
+    .btn-login:active { transform: translateY(0); }
+
+    .login-divider {
+      text-align: center; margin-top: 20px;
+      font-size: 12px; color: rgba(187,201,205,0.3);
+    }
+    .login-hint {
+      margin-top: 8px; text-align: center;
+      font-family: 'Geist Mono', monospace;
+      font-size: 11px; color: rgba(187,201,205,0.35);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius-md); padding: 9px 14px;
+    }
+    .login-hint strong { color: rgba(34,211,238,0.6); }
   </style>
 </head>
 <body>
 
+  <!-- ===== LOGIN OVERLAY ===== -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-modal">
+      <div class="login-logo-row">
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="url(#ll1)"/>
+          <path d="M7 17l3.5-5L14 18l3-7 4 9 3.5-5" stroke="white" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="ll1" x1="0" y1="0" x2="32" y2="32">
+              <stop offset="0%" stop-color="#22d3ee"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="login-logo-text">QueryMind AI</span>
+      </div>
+
+      <div class="login-heading">Welcome back</div>
+      <p class="login-sub">Sign in to access your analytics portal</p>
+
+      <div class="form-group">
+        <label class="form-label" for="login-email">Email</label>
+        <input class="form-input" id="login-email" type="email"
+               placeholder="admin@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
+        <input class="form-input" id="login-password" type="password"
+               placeholder="••••••••" autocomplete="current-password">
+        <div class="login-error" id="login-error">Incorrect email or password. Please try again.</div>
+      </div>
+
+      <button class="btn-login" id="btn-login" onclick="doLogin()">Sign In →</button>
+
+      <div class="login-divider">Demo credentials</div>
+      <div class="login-hint">
+        <strong>admin@email.com</strong> &nbsp;/&nbsp; <strong>admin123</strong>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== NAVIGATION ===== -->
   <nav>
-    <a href="index.html" class="nav-logo">
+    <a href="/" class="nav-logo">
       <svg class="nav-logo-icon" viewBox="0 0 32 32" fill="none">
         <rect width="32" height="32" rx="8" fill="url(#lg1)"/>
         <path d="M7 17l3.5-5L14 18l3-7 4 9 3.5-5" stroke="white" stroke-width="1.8"
@@ -583,8 +735,8 @@
     </ul>
 
     <div class="nav-actions">
-      <button class="btn-ghost">Sign In</button>
-      <a href="workspace.html" class="btn-nav-cta">Start Free →</a>
+      <button class="btn-ghost" onclick="showLogin()">Sign In</button>
+      <a href="/workspace" class="btn-nav-cta" onclick="return requireAuth(event, '/workspace')">Start Free →</a>
     </div>
   </nav>
 
@@ -601,7 +753,7 @@
       <p class="hero-sub">An AI engine designed for Data Analysts to translate business questions into SQL, explain complex queries, and accelerate analytics workflows.</p>
 
       <div class="hero-cta-row">
-        <a href="workspace.html" class="btn-primary">
+        <a href="/workspace" class="btn-primary" onclick="return requireAuth(event, '/workspace')">
           Start Querying
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -821,7 +973,7 @@
       <h2>Transform your data workflow today.</h2>
       <p>Join analysts who ship data insights 10× faster.</p>
       <div class="cta-btns">
-        <a href="workspace.html" class="btn-primary">Start Free Trial</a>
+        <a href="/workspace" class="btn-primary" onclick="return requireAuth(event, '/workspace')">Start Free Trial</a>
         <a href="#" class="btn-secondary">Talk to Sales</a>
       </div>
     </div>
@@ -841,6 +993,65 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    const AUTH_KEY   = 'qm_auth';
+    const VALID_EMAIL = 'admin@email.com';
+    const VALID_PASS  = 'admin123';
+    let   _afterLogin = null;
+
+    // On load: hide overlay if already logged in, otherwise keep visible
+    if (sessionStorage.getItem(AUTH_KEY)) {
+      document.getElementById('login-overlay').classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-email').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('login-password').focus();
+      });
+      document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+      });
+    });
+
+    function showLogin(dest) {
+      _afterLogin = dest || null;
+      document.getElementById('login-overlay').classList.remove('hidden');
+      document.getElementById('login-email').focus();
+    }
+
+    function doLogin() {
+      const email  = document.getElementById('login-email').value.trim().toLowerCase();
+      const pass   = document.getElementById('login-password').value;
+      const err    = document.getElementById('login-error');
+      const inputs = document.querySelectorAll('.form-input');
+
+      if (email === VALID_EMAIL && pass === VALID_PASS) {
+        sessionStorage.setItem(AUTH_KEY, '1');
+        document.getElementById('login-overlay').classList.add('hidden');
+        err.classList.remove('visible');
+        if (_afterLogin) { window.location.href = _afterLogin; _afterLogin = null; }
+      } else {
+        err.classList.add('visible');
+        inputs.forEach(el => {
+          el.classList.remove('shake');
+          void el.offsetWidth; // reflow to restart animation
+          el.classList.add('shake');
+        });
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-password').focus();
+      }
+    }
+
+    function requireAuth(e, dest) {
+      if (!sessionStorage.getItem(AUTH_KEY)) {
+        e.preventDefault();
+        showLogin(dest);
+        return false;
+      }
+      return true;
+    }
+  </script>
 
 </body>
 </html>

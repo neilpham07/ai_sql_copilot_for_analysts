@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finviet CDP &#8212; Customer Data Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-base:#0B1020; --bg-surface:#0e1323; --bg-surface-low:#161b2b;
+      --bg-surface-mid:#1a1f30; --bg-surface-high:#25293a;
+      --text-primary:#dee1f9; --text-secondary:#bbc9cd;
+      --cyan-mid:#22d3ee; --cyan-primary:#8aebff;
+      --violet-deep:#8b5cf6; --violet-primary:#d0bcff;
+      --success-green:#4ade80; --error:#ffb4ab;
+      --border-subtle:rgba(255,255,255,0.08); --border-elevated:rgba(255,255,255,0.15);
+      --gradient-cta:linear-gradient(135deg,#22d3ee 0%,#8b5cf6 100%);
+      --radius-sm:4px; --radius-md:12px; --radius-lg:16px; --radius-xl:24px; --radius-full:9999px;
+    }
+    body { background:#0B1020; color:#dee1f9; font-family:Inter,sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+    /* ── Header ── */
+    .cdp-header {
+      height:60px; display:flex; align-items:center; justify-content:space-between;
+      padding:0 24px; background:rgba(11,16,32,0.95); border-bottom:1px solid rgba(255,255,255,0.06);
+      backdrop-filter:blur(16px); flex-shrink:0; z-index:100;
+    }
+    .cdp-logo { display:flex; align-items:center; gap:10px; }
+    .cdp-logo-text { font-size:17px; font-weight:700; color:#dee1f9; }
+    .cdp-logo-badge {
+      font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#22d3ee; background:rgba(34,211,238,0.1);
+      border:1px solid rgba(34,211,238,0.25); border-radius:var(--radius-full); padding:3px 8px;
+    }
+    .cdp-nav { display:flex; gap:4px; }
+    .cdp-nav-item {
+      padding:6px 16px; border-radius:var(--radius-full); font-size:14px; font-weight:500;
+      color:#bbc9cd; cursor:pointer; transition:all 0.2s; border:none; background:transparent;
+    }
+    .cdp-nav-item.active { background:var(--gradient-cta); color:#000; font-weight:600; }
+    .cdp-nav-item:hover:not(.active) { color:#dee1f9; background:rgba(255,255,255,0.06); }
+    .cdp-header-actions { display:flex; gap:10px; align-items:center; }
+    .btn-save-draft {
+      padding:8px 18px; border-radius:var(--radius-lg); font-size:14px; font-weight:500;
+      color:#dee1f9; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);
+      cursor:pointer; transition:all 0.2s;
+    }
+    .btn-save-draft:hover { background:rgba(255,255,255,0.1); }
+    .btn-deploy {
+      padding:8px 20px; border-radius:var(--radius-lg); font-size:14px; font-weight:600;
+      color:#000; background:var(--gradient-cta); border:none; cursor:pointer;
+      transition:transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-deploy:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(34,211,238,0.3); }
+
+    /* ── Shell ── */
+    .cdp-shell { display:flex; flex:1; overflow:hidden; }
+
+    /* ── Sidebar ── */
+    .cdp-sidebar {
+      width:260px; min-width:220px; background:rgba(14,19,35,0.95);
+      border-right:1px solid rgba(255,255,255,0.06);
+      display:flex; flex-direction:column; overflow-y:auto; flex-shrink:0;
+    }
+    .sidebar-section-title {
+      padding:16px 16px 8px; font-size:11px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#4a5568; font-family:'Geist Mono',monospace;
+    }
+    .sidebar-badge {
+      display:inline-block; font-family:'Geist Mono',monospace; font-size:10px; font-weight:600;
+      color:#4ade80; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.2);
+      border-radius:var(--radius-full); padding:2px 8px; margin-left:6px;
+    }
+    .seg-category { padding:6px 12px; }
+    .seg-category-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 8px; border-radius:8px; cursor:pointer; transition:background 0.15s;
+      font-size:13px; font-weight:500; color:#bbc9cd;
+    }
+    .seg-category-header:hover { background:rgba(255,255,255,0.04); }
+    .seg-category-header .chevron { transition:transform 0.2s; font-size:10px; }
+    .seg-category-header.open .chevron { transform:rotate(90deg); }
+    .seg-items { padding-left:8px; display:none; }
+    .seg-items.open { display:block; }
+    .seg-item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 10px; border-radius:8px; cursor:pointer; transition:background 0.15s;
+      font-size:13px; color:#bbc9cd;
+    }
+    .seg-item:hover { background:rgba(34,211,238,0.06); color:#8aebff; }
+    .seg-item.active { background:rgba(34,211,238,0.1); color:#22d3ee; }
+    .seg-count {
+      font-family:'Geist Mono',monospace; font-size:10px; color:#4a5568;
+      background:rgba(255,255,255,0.06); border-radius:4px; padding:1px 5px;
+    }
+    .sidebar-footer { margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.06); }
+    .db-status-badge {
+      display:flex; align-items:center; gap:8px; padding:10px 14px;
+      background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); border-radius:12px;
+    }
+    .pulse-dot {
+      width:8px; height:8px; background:#4ade80; border-radius:50%;
+      animation:pulse 2s infinite; flex-shrink:0;
+    }
+    @keyframes pulse {
+      0% { box-shadow:0 0 0 0 rgba(74,222,128,0.5); }
+      70% { box-shadow:0 0 0 6px rgba(74,222,128,0); }
+      100% { box-shadow:0 0 0 0 rgba(74,222,128,0); }
+    }
+    .db-status-text { font-size:12px; font-weight:600; color:#dee1f9; }
+    .db-status-sub { font-family:'Geist Mono',monospace; font-size:10px; color:#4ade80; text-transform:uppercase; letter-spacing:0.06em; }
+
+    /* ── Main workspace ── */
+    .cdp-main { flex:1; overflow-y:auto; padding:24px 28px; display:flex; gap:24px; }
+    .cdp-left-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:20px; }
+    .cdp-right-col { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:16px; }
+
+    /* ── NLP input card ── */
+    .nl-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px 24px;
+    }
+    .nl-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .nl-card-title { font-size:15px; font-weight:600; color:#dee1f9; }
+    .ai-badge {
+      font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.08em;
+      text-transform:uppercase; color:#22d3ee; background:rgba(34,211,238,0.1);
+      border:1px solid rgba(34,211,238,0.2); border-radius:var(--radius-full); padding:3px 10px;
+    }
+    .nl-input-wrap { display:flex; gap:10px; align-items:flex-start; }
+    .nl-textarea {
+      flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:var(--radius-lg); color:#dee1f9; font-family:Inter,sans-serif;
+      font-size:14px; padding:12px 16px; resize:none; height:60px;
+      transition:border-color 0.2s, box-shadow 0.2s; outline:none;
+    }
+    .nl-textarea:focus {
+      border-color:rgba(34,211,238,0.4);
+      box-shadow:0 0 0 2px rgba(34,211,238,0.08);
+    }
+    .nl-textarea::placeholder { color:#4a5568; }
+    .btn-qualify {
+      padding:10px 18px; border-radius:var(--radius-lg); font-size:13px; font-weight:600;
+      color:#000; background:var(--gradient-cta); border:none; cursor:pointer;
+      white-space:nowrap; transition:transform 0.2s, box-shadow 0.2s; flex-shrink:0;
+    }
+    .btn-qualify:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(34,211,238,0.3); }
+    .btn-qualify:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+    /* ── Rule builder card ── */
+    .rule-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px 24px;
+    }
+    .rule-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .rule-card-title { font-size:15px; font-weight:600; color:#dee1f9; }
+    .logic-toggle { display:flex; gap:4px; background:rgba(255,255,255,0.04); border-radius:var(--radius-full); padding:3px; border:1px solid rgba(255,255,255,0.08); }
+    .logic-btn {
+      padding:4px 14px; border-radius:var(--radius-full); font-size:12px; font-weight:600;
+      font-family:'Geist Mono',monospace; cursor:pointer; border:none; background:transparent;
+      color:#bbc9cd; transition:all 0.2s;
+    }
+    .logic-btn.active { background:var(--gradient-cta); color:#000; }
+
+    /* ── Criteria rows ── */
+    .criteria-group { display:flex; flex-direction:column; gap:8px; }
+    .criteria-row {
+      display:flex; align-items:center; gap:8px; padding:10px 14px;
+      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+      border-radius:var(--radius-md); transition:border-color 0.2s;
+    }
+    .criteria-row:hover { border-color:rgba(255,255,255,0.1); }
+    .criteria-select {
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; color:#dee1f9; font-size:13px; padding:6px 10px;
+      outline:none; cursor:pointer; font-family:Inter,sans-serif;
+    }
+    .criteria-select.field-select { flex:2; min-width:0; }
+    .criteria-select.op-select { flex:1.5; min-width:0; }
+    .criteria-input {
+      flex:1.5; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; color:#dee1f9; font-size:13px; padding:6px 10px;
+      outline:none; font-family:Inter,sans-serif; min-width:0;
+    }
+    .criteria-input:focus, .criteria-select:focus { border-color:rgba(34,211,238,0.35); }
+    .btn-delete-row {
+      width:28px; height:28px; border-radius:6px; background:rgba(255,100,100,0.08);
+      border:1px solid rgba(255,100,100,0.15); color:#ffb4ab; font-size:14px;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:background 0.2s; flex-shrink:0;
+    }
+    .btn-delete-row:hover { background:rgba(255,100,100,0.18); }
+
+    .rule-actions { display:flex; gap:10px; margin-top:12px; }
+    .btn-add-row {
+      display:flex; align-items:center; gap:6px; padding:8px 16px;
+      border-radius:var(--radius-md); font-size:13px; font-weight:500; color:#22d3ee;
+      background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.2);
+      cursor:pointer; transition:background 0.2s;
+    }
+    .btn-add-row:hover { background:rgba(34,211,238,0.12); }
+
+    /* ── Audience estimation panel ── */
+    .est-card {
+      background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+      border-radius:var(--radius-xl); padding:20px;
+    }
+    .est-title { font-family:'Geist Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#4a5568; margin-bottom:16px; }
+    .est-number { font-size:40px; font-weight:700; color:#dee1f9; line-height:1; }
+    .est-label { font-size:13px; color:#bbc9cd; margin-top:4px; }
+    .est-delta { font-size:12px; color:#4ade80; margin-top:2px; }
+    .est-divider { border:none; border-top:1px solid rgba(255,255,255,0.06); margin:14px 0; }
+    .est-metric { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .est-metric-label { font-size:13px; color:#bbc9cd; }
+    .est-metric-value { font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:#22d3ee; }
+    .est-loading { display:none; text-align:center; padding:12px 0; color:#4a5568; font-size:13px; }
+    .est-placeholder { text-align:center; padding:20px 0; color:#4a5568; font-size:13px; }
+
+    /* ── Preview table ── */
+    .preview-card {
+      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+      border-radius:var(--radius-xl); overflow:hidden; margin-top:4px;
+    }
+    .preview-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 20px; border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .preview-title { font-size:14px; font-weight:600; color:#dee1f9; }
+    .preview-link { font-size:13px; color:#22d3ee; cursor:pointer; text-decoration:none; }
+    .preview-table { width:100%; border-collapse:collapse; }
+    .preview-table th {
+      padding:10px 16px; font-family:'Geist Mono',monospace; font-size:11px; font-weight:600;
+      letter-spacing:0.06em; text-transform:uppercase; color:#4a5568;
+      border-bottom:1px solid rgba(255,255,255,0.06); text-align:left;
+    }
+    .preview-table td { padding:12px 16px; font-size:13px; color:#bbc9cd; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .preview-table tr:last-child td { border-bottom:none; }
+    .preview-table tr:hover td { background:rgba(255,255,255,0.02); }
+    .tag-pill {
+      display:inline-block; padding:2px 10px; border-radius:var(--radius-full); font-size:11px; font-weight:600;
+      background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.2); color:#22d3ee;
+      font-family:'Geist Mono',monospace; white-space:nowrap;
+    }
+    .status-excellent { color:#4ade80; }
+    .status-good { color:#86efac; }
+    .status-standard { color:#bbc9cd; }
+    .status-watch { color:#fbbf24; }
+
+    /* ── Toast ── */
+    .toast {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+      background:rgba(34,211,238,0.15); border:1px solid rgba(34,211,238,0.3);
+      color:#dee1f9; padding:10px 20px; border-radius:var(--radius-full);
+      font-size:14px; font-weight:500; z-index:999; transition:transform 0.3s ease;
+      backdrop-filter:blur(12px); white-space:nowrap;
+    }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="cdp-header">
+  <div class="cdp-logo">
+    <span class="cdp-logo-text">Finviet CDP</span>
+    <span class="cdp-logo-badge">v3.5 Stable</span>
+  </div>
+  <nav class="cdp-nav">
+    <button class="cdp-nav-item active">Library</button>
+    <a href="/workspace" class="cdp-nav-item" style="text-decoration:none;">SQL Workspace</a>
+    <button class="cdp-nav-item">Audiences</button>
+    <button class="cdp-nav-item">Analytics</button>
+  </nav>
+  <div class="cdp-header-actions">
+    <button class="btn-save-draft" onclick="doLogout()" style="color:#bbc9cd;">Sign out</button>
+    <button class="btn-save-draft" onclick="showToast('Draft saved!')">Save Draft</button>
+    <button class="btn-deploy" onclick="deploySegment()">Deploy Segment &#8594;</button>
+  </div>
+</header>
+
+<!-- Shell -->
+<div class="cdp-shell">
+
+  <!-- Sidebar -->
+  <aside class="cdp-sidebar" id="cdp-sidebar">
+    <div class="sidebar-section-title">BI Segment Library <span class="sidebar-badge">v2.4</span></div>
+    <div id="seg-tree"></div>
+    <div class="sidebar-footer">
+      <div class="db-status-badge">
+        <div class="pulse-dot"></div>
+        <div>
+          <div class="db-status-text">Connected to Production DB</div>
+          <div class="db-status-sub">Live Sync Enabled</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="cdp-main">
+    <div class="cdp-left-col">
+
+      <!-- NLP Input -->
+      <div class="nl-card">
+        <div class="nl-card-header">
+          <span class="nl-card-title">Describe your merchant segment</span>
+          <span class="ai-badge">&#10022; Qualifying AI</span>
+        </div>
+        <div class="nl-input-wrap">
+          <textarea id="nl-input" class="nl-textarea"
+            placeholder="e.g. Find merchants in TP. HCM active for 6+ months with GMV &gt; 50M and low transaction failure rate..."></textarea>
+          <button id="btn-qualify" class="btn-qualify" onclick="runNL()">&#10024; Qualify</button>
+        </div>
+      </div>
+
+      <!-- Rule Builder -->
+      <div class="rule-card">
+        <div class="rule-card-header">
+          <span class="rule-card-title">Advanced Rule Logic</span>
+          <div class="logic-toggle">
+            <button class="logic-btn active" id="logic-and" onclick="setLogic('AND')">AND</button>
+            <button class="logic-btn" id="logic-or" onclick="setLogic('OR')">OR</button>
+          </div>
+        </div>
+        <div class="criteria-group" id="criteria-group"></div>
+        <div class="rule-actions">
+          <button class="btn-add-row" onclick="addCriteriaRow()">&#43; Add Criteria Row</button>
+          <button class="btn-add-row" onclick="addCriteriaRow()">&#43; Add Condition Group</button>
+        </div>
+      </div>
+
+      <!-- Merchant Preview Table -->
+      <div class="preview-card" id="preview-card" style="display:none">
+        <div class="preview-header">
+          <span class="preview-title">Merchant Data Preview</span>
+          <span class="preview-link">View all &#8594;</span>
+        </div>
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Merchant Store</th><th>Region</th><th>Segment Tag</th><th>30D GMV</th><th>CDP Status</th>
+            </tr>
+          </thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /left col -->
+
+    <!-- Right col: Estimation -->
+    <div class="cdp-right-col">
+      <div class="est-card">
+        <div class="est-title">Target Audience Estimation</div>
+        <div id="est-placeholder" class="est-placeholder">Add criteria to see<br>audience estimate</div>
+        <div id="est-results" style="display:none">
+          <div class="est-number" id="est-number">0</div>
+          <div class="est-label">Merchants</div>
+          <div class="est-delta" id="est-delta"></div>
+          <hr class="est-divider">
+          <div class="est-metric">
+            <span class="est-metric-label">Reach Reliability</span>
+            <span class="est-metric-value" id="est-reliability">-</span>
+          </div>
+          <div class="est-metric">
+            <span class="est-metric-label">Forecasted Conversion</span>
+            <span class="est-metric-value" id="est-conversion">-</span>
+          </div>
+          <div class="est-metric">
+            <span class="est-metric-label">Coverage</span>
+            <span class="est-metric-value" id="est-coverage">-</span>
+          </div>
+        </div>
+        <div id="est-loading" class="est-loading">Calculating&#8230;</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== AUTH GUARD =====
+  if (!sessionStorage.getItem('qm_auth')) { window.location.href = '/'; }
+  function doLogout() { sessionStorage.removeItem('qm_auth'); window.location.href = '/'; }
+
+  // ===== STATE =====
+  let currentLogic = 'AND';
+  let criteriaFields = {};
+  let segments = [];
+  let debounceTimer = null;
+  let rowId = 0;
+
+  // ===== INIT =====
+  async function init() {
+    try {
+      const [fRes, sRes] = await Promise.all([
+        fetch('/api/cdp/criteria_fields'),
+        fetch('/api/cdp/segments'),
+      ]);
+      const fData = await fRes.json();
+      const sData = await sRes.json();
+      criteriaFields = fData.fields || {};
+      segments = sData.segments || [];
+      renderSidebar();
+      addCriteriaRow();
+    } catch(e) {
+      showToast('Error loading CDP data: ' + e.message);
+    }
+  }
+
+  // ===== SIDEBAR RENDER =====
+  function renderSidebar() {
+    const categories = {};
+    segments.forEach(s => {
+      if (!categories[s.category]) categories[s.category] = [];
+      categories[s.category].push(s);
+    });
+    const tree = document.getElementById('seg-tree');
+    tree.innerHTML = '';
+    Object.entries(categories).forEach(([cat, segs]) => {
+      const catEl = document.createElement('div');
+      catEl.className = 'seg-category';
+      catEl.innerHTML = `
+        <div class="seg-category-header open" onclick="toggleCategory(this)">
+          <span>${cat}</span>
+          <span class="chevron">&#9658;</span>
+        </div>
+        <div class="seg-items open">
+          ${segs.map(s => `
+            <div class="seg-item" data-id="${s.id}" onclick="loadSegment('${s.id}')">
+              <span>${s.label}</span>
+              <span class="seg-count">${Math.floor(Math.random()*20+5)}k</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      tree.appendChild(catEl);
+    });
+  }
+
+  function toggleCategory(header) {
+    header.classList.toggle('open');
+    header.nextElementSibling.classList.toggle('open');
+  }
+
+  // ===== SEGMENT LIBRARY LOAD =====
+  function loadSegment(id) {
+    const seg = segments.find(s => s.id === id);
+    if (!seg) return;
+    document.querySelectorAll('.seg-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-id="${id}"]`).classList.add('active');
+    document.getElementById('criteria-group').innerHTML = '';
+    rowId = 0;
+    const groups = seg.filters.groups || [];
+    groups.forEach(group => {
+      (group.criteria || []).forEach(c => addCriteriaRow(c));
+    });
+    currentLogic = seg.filters.operator || 'AND';
+    document.getElementById('logic-and').classList.toggle('active', currentLogic === 'AND');
+    document.getElementById('logic-or').classList.toggle('active', currentLogic === 'OR');
+    triggerEstimate();
+  }
+
+  // ===== LOGIC TOGGLE =====
+  function setLogic(op) {
+    currentLogic = op;
+    document.getElementById('logic-and').classList.toggle('active', op === 'AND');
+    document.getElementById('logic-or').classList.toggle('active', op === 'OR');
+    triggerEstimate();
+  }
+
+  // ===== CRITERIA ROWS =====
+  function addCriteriaRow(preset) {
+    const id = ++rowId;
+    const container = document.getElementById('criteria-group');
+    const row = document.createElement('div');
+    row.className = 'criteria-row';
+    row.dataset.rowId = id;
+
+    const fieldOptions = Object.entries(criteriaFields).map(([k, v]) =>
+      `<option value="${k}" ${preset && preset.field === k ? 'selected' : ''}>${v.label}</option>`
+    ).join('');
+
+    row.innerHTML = `
+      <select class="criteria-select field-select" onchange="onFieldChange(this, ${id})">
+        <option value="">Select field&#8230;</option>
+        ${fieldOptions}
+      </select>
+      <select class="criteria-select op-select" id="op-${id}">
+        <option value="">&#8212;</option>
+      </select>
+      <input type="text" class="criteria-input" id="val-${id}" placeholder="Value&#8230;" oninput="triggerEstimate()">
+      <button class="btn-delete-row" onclick="removeRow(${id})" title="Remove">&#215;</button>
+    `;
+    container.appendChild(row);
+
+    if (preset && preset.field) {
+      const fieldSel = row.querySelector('.field-select');
+      fieldSel.value = preset.field;
+      populateOperators(id, preset.field, preset.operator);
+      document.getElementById('val-' + id).value = Array.isArray(preset.value)
+        ? preset.value.join(', ') : (preset.value ?? '');
+    }
+  }
+
+  function onFieldChange(select, id) {
+    const field = select.value;
+    populateOperators(id, field, null);
+    triggerEstimate();
+  }
+
+  function populateOperators(rowId, fieldKey, selectedOp) {
+    const opSel = document.getElementById('op-' + rowId);
+    if (!opSel) return;
+    const meta = criteriaFields[fieldKey];
+    if (!meta) { opSel.innerHTML = '<option>&#8212;</option>'; return; }
+    opSel.innerHTML = meta.operators.map(op =>
+      `<option value="${op}" ${selectedOp === op ? 'selected' : ''}>${op}</option>`
+    ).join('');
+    opSel.onchange = () => triggerEstimate();
+  }
+
+  function removeRow(id) {
+    const row = document.querySelector(`[data-row-id="${id}"]`);
+    if (row) row.remove();
+    triggerEstimate();
+  }
+
+  // ===== BUILD FILTER PAYLOAD =====
+  function buildFilters() {
+    const rows = document.querySelectorAll('.criteria-row');
+    const criteria = [];
+    rows.forEach(row => {
+      const id = row.dataset.rowId;
+      const field = row.querySelector('.field-select').value;
+      const op = document.getElementById('op-' + id)?.value;
+      const val = document.getElementById('val-' + id)?.value.trim();
+      if (field && op && val !== '') {
+        const meta = criteriaFields[field];
+        let value = val;
+        if (meta && meta.type === 'numeric') {
+          value = parseFloat(val.replace(/,/g, '')) || 0;
+        } else if (meta && meta.type === 'boolean') {
+          value = val;
+        } else if (op === 'is one of') {
+          value = val.split(',').map(v => v.trim());
+        }
+        criteria.push({ field, operator: op, value });
+      }
+    });
+    return {
+      operator: currentLogic,
+      groups: criteria.length ? [{ operator: 'AND', criteria }] : []
+    };
+  }
+
+  // ===== ESTIMATE =====
+  function triggerEstimate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runEstimate, 500);
+  }
+
+  async function runEstimate() {
+    const filters = buildFilters();
+    if (!filters.groups.length) {
+      document.getElementById('est-placeholder').style.display = '';
+      document.getElementById('est-results').style.display = 'none';
+      document.getElementById('preview-card').style.display = 'none';
+      return;
+    }
+    document.getElementById('est-loading').style.display = 'block';
+    document.getElementById('est-results').style.display = 'none';
+    document.getElementById('est-placeholder').style.display = 'none';
+    try {
+      const res = await fetch('/api/cdp/segment/estimate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ filters, preview_rows: 5 })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      renderEstimate(data);
+    } catch(e) {
+      showToast('Estimate error: ' + e.message);
+    } finally {
+      document.getElementById('est-loading').style.display = 'none';
+    }
+  }
+
+  function renderEstimate(data) {
+    document.getElementById('est-number').textContent = data.audience_size.toLocaleString();
+    document.getElementById('est-delta').textContent = '+' + data.delta_pct + '% vs last calculation';
+    document.getElementById('est-reliability').textContent = data.reach_reliability + '%';
+    document.getElementById('est-conversion').textContent = '+' + data.forecasted_conversion + '%';
+    document.getElementById('est-coverage').textContent = data.coverage_pct + '%';
+    document.getElementById('est-results').style.display = 'block';
+    renderPreview(data.merchant_preview || []);
+  }
+
+  function renderPreview(rows) {
+    if (!rows.length) return;
+    const tbody = document.getElementById('preview-tbody');
+    tbody.innerHTML = rows.map(r => {
+      const statusClass = 'status-' + (r.cdp_status || 'standard').toLowerCase();
+      return `<tr>
+        <td>${r.merchant_store}</td>
+        <td>${r.region}</td>
+        <td><span class="tag-pill">${r.segment_tag}</span></td>
+        <td>${(r.gmv_30d/1000000).toFixed(1)}M</td>
+        <td class="${statusClass}">${r.cdp_status}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('preview-card').style.display = 'block';
+  }
+
+  // ===== NLP =====
+  async function runNL() {
+    const desc = document.getElementById('nl-input').value.trim();
+    if (!desc) { showToast('Please describe your segment first'); return; }
+    const btn = document.getElementById('btn-qualify');
+    btn.disabled = true; btn.textContent = 'Qualifying...';
+    try {
+      const res = await fetch('/api/cdp/nl_to_filters', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ description: desc })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const filters = data.filters;
+      document.getElementById('criteria-group').innerHTML = '';
+      rowId = 0;
+      const groups = filters.groups || [];
+      groups.forEach(group => {
+        (group.criteria || []).forEach(c => addCriteriaRow(c));
+      });
+      currentLogic = filters.operator || 'AND';
+      document.getElementById('logic-and').classList.toggle('active', currentLogic === 'AND');
+      document.getElementById('logic-or').classList.toggle('active', currentLogic === 'OR');
+      showToast('&#10003; Filters populated from AI (' + Math.round((data.confidence||0.85)*100) + '% confidence)');
+      triggerEstimate();
+    } catch(e) {
+      showToast('AI error: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '&#10024; Qualify';
+    }
+  }
+
+  // ===== DEPLOY =====
+  async function deploySegment() {
+    const filters = buildFilters();
+    if (!filters.groups.length) { showToast('Add at least one criteria to deploy'); return; }
+    showToast('&#10003; Segment deployed to production!');
+  }
+
+  // ===== TOAST =====
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerHTML = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  init();
+</script>
+</body>
+</html>
