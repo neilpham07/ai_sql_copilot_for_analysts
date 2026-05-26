@@ -1,0 +1,35 @@
+# ── Local config (sensitive — NEVER commit) ──────────────────
+.claude/claude.local.md
+*.local.md
+*.local.env
+.env
+.env.*
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# ── Pytest / coverage ─────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Downloads / exports ───────────────────────────────────────
+downloads/*.csv
+downloads/*.xlsx
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*~
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

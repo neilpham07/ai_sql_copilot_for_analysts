@@ -439,6 +439,15 @@
     }
     .preview-table tr:last-child td { border-bottom: none; }
     .preview-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .btn-export-csv {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: var(--radius-md);
+      background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.25);
+      color: #8aebff; font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-export-csv:hover { background: rgba(34,211,238,0.15); border-color: rgba(34,211,238,0.45); }
+    .btn-export-csv:disabled { opacity: 0.5; cursor: not-allowed; }
     .tag-pill {
       display: inline-block; padding: 2px 9px; border-radius: var(--radius-full);
       font-size: 11px; font-weight: 600; white-space: nowrap;
@@ -595,7 +604,12 @@
         <div class="preview-card" id="preview-card">
           <div class="preview-card-header">
             <span class="preview-card-title">Merchant Data Preview</span>
-            <span class="preview-count">Showing 5 merchants</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span class="preview-count" id="preview-count">Showing 0 merchants</span>
+              <button class="btn-export-csv" id="btn-export-csv" onclick="exportCSV()">
+                ↓ Export CSV
+              </button>
+            </div>
           </div>
           <table class="preview-table">
             <thead>
@@ -876,7 +890,7 @@
       if (data.error) throw new Error(data.error);
       renderEstimate(data);
     } catch(e) {
-      showToast('Estimate error: ' + e.message);
+      renderCdpError(e.message, 'estimate');
     } finally {
       document.getElementById('est-loading').style.display = 'none';
     }
@@ -909,7 +923,43 @@
         <td class="${sc}">${r.cdp_status}</td>
       </tr>`;
     }).join('');
+    document.getElementById('preview-count').textContent = `Showing ${rows.length} merchants`;
     document.getElementById('preview-card').style.display = 'block';
+  }
+
+  async function exportCSV() {
+    const filters = buildFilters();
+    if (!filters.groups.length) { showToast('Thêm điều kiện lọc trước khi export'); return; }
+    const btn = document.getElementById('btn-export-csv');
+    btn.disabled = true;
+    btn.textContent = '⏳ Exporting…';
+    try {
+      const res = await fetch('/api/cdp/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filters }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Export thất bại' }));
+        throw new Error(err.error || 'Export thất bại');
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      a.download = `cdp_export_${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✓ Export hoàn tất!');
+    } catch (e) {
+      showToast('⚠ ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '↓ Export CSV';
+    }
   }
 
   // ===== NLP =====
@@ -934,11 +984,32 @@
       showToast('✓ Filters populated (' + Math.round((data.confidence||0.85)*100) + '% confidence)');
       triggerEstimate();
     } catch(e) {
-      showToast('AI error: ' + e.message);
+      renderCdpError(e.message, 'nl');
     } finally {
       btn.disabled = false;
       btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5l1.5 4H12L8.75 7.5l1.25 4L6.5 9.5l-3.5 2 1.25-4L1 5.5h4z" fill="currentColor"/></svg> Qualify`;
     }
+  }
+
+  // ===== ERROR DISPLAY =====
+  function renderCdpError(msg, source) {
+    const isAuth = msg.toLowerCase().includes('api key') ||
+                   msg.toLowerCase().includes('authentication') ||
+                   msg.toLowerCase().includes('401');
+    const icon  = isAuth ? '🔑' : '⚠️';
+    const title = isAuth ? 'Lỗi API Key' : (source === 'nl' ? 'Lỗi AI Qualify' : 'Lỗi tính toán');
+    const hint  = isAuth
+      ? 'Restart server với key hợp lệ:<br><code style="color:#8aebff;font-size:11px">$env:ANTHROPIC_API_KEY = "sk-ant-api03-..."</code><br><code style="color:#8aebff;font-size:11px">python local_dev.py</code>'
+      : 'Vui lòng thử lại hoặc kiểm tra kết nối mạng.';
+    const panel = document.getElementById('est-results');
+    panel.style.display = 'block';
+    panel.innerHTML =
+      `<div style="padding:16px;background:rgba(255,180,171,0.08);border:1px solid rgba(255,180,171,0.25);border-radius:12px;font-family:Inter,sans-serif">
+         <div style="font-size:15px;font-weight:600;color:#ffb4ab;margin-bottom:6px">${icon} ${title}</div>
+         <div style="font-size:12px;color:#bbc9cd;margin-bottom:10px;line-height:1.6">${msg}</div>
+         <div style="font-size:11px;color:#8aebff;opacity:0.85;line-height:1.9">${hint}</div>
+       </div>`;
+    showToast(icon + ' ' + title + ' — xem chi tiết trong panel');
   }
 
   // ===== DEPLOY =====

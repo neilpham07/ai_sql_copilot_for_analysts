@@ -1165,10 +1165,31 @@
           showToast('✓ Explanation ready');
         }
       } catch (err) {
-        showToast('Lỗi: ' + err.message);
+        renderError(err.message);
       } finally {
         btn.classList.remove('loading');
       }
+    }
+
+    // ===== RENDER ERROR in result zone =====
+    function renderError(msg) {
+      const isAuthErr = msg.toLowerCase().includes('api key') ||
+                        msg.toLowerCase().includes('authentication') ||
+                        msg.toLowerCase().includes('401');
+      const icon  = isAuthErr ? '🔑' : '⚠️';
+      const title = isAuthErr ? 'Lỗi xác thực API Key' : 'Lỗi kết nối AI';
+      const hint  = isAuthErr
+        ? 'Mở terminal và chạy:<br><code style="color:#8aebff">$env:ANTHROPIC_API_KEY = "sk-ant-api03-..."</code><br>rồi khởi động lại server: <code style="color:#8aebff">python local_dev.py</code>'
+        : 'Vui lòng thử lại. Nếu lỗi tiếp diễn, kiểm tra kết nối mạng.';
+
+      document.getElementById('sql-output').innerHTML =
+        `<div style="color:#ffb4ab;font-family:Inter,sans-serif;padding:8px 0">
+           <div style="font-size:18px;font-weight:600;margin-bottom:8px">${icon} ${title}</div>
+           <div style="font-size:13px;color:#bbc9cd;margin-bottom:12px;line-height:1.6">${escHtml(msg)}</div>
+           <div style="font-size:12px;color:#8aebff;opacity:0.8;line-height:1.8">${hint}</div>
+         </div>`;
+      document.querySelector('.sql-row-count').textContent = '✗ Lỗi — xem chi tiết bên dưới';
+      showToast(icon + ' ' + title);
     }
 
     // ===== RENDER SQL with syntax highlighting =====

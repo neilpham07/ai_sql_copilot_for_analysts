@@ -5,7 +5,8 @@
 import os
 import re
 import modal
-import anthropic
+from google import genai
+from google.genai import types
 
 app = modal.App("querymind-ai")
 
@@ -118,15 +119,34 @@ RULES — FOLLOW STRICTLY:
 # [SECTION 4] BACKEND LOGIC
 # ============================================================
 
-def call_claude(system_prompt: str, user_message: str) -> str:
-    client = anthropic.Anthropic()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}]
-    )
-    return message.content[0].text
+def call_gemini(system_prompt: str, user_message: str, _retries: int = 1) -> str:
+    import time
+    try:
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,
+            ),
+        )
+        return response.text
+    except Exception as e:
+        err = str(e).lower()
+        if any(k in err for k in ("api_key", "invalid", "401", "403", "permission", "authenticate", "credential")):
+            raise ValueError("GEMINI_API_KEY không hợp lệ hoặc chưa được cấu hình đúng.")
+        if any(k in err for k in ("connect", "network", "timeout", "unreachable")):
+            raise ValueError("Không thể kết nối đến Google Gemini API. Kiểm tra kết nối mạng.")
+        if any(k in err for k in ("503", "unavailable", "high demand", "quota", "rate", "429", "resource_exhausted")):
+            if _retries > 0:
+                time.sleep(2)
+                return call_gemini(system_prompt, user_message, _retries - 1)
+            raise ValueError(
+                "Google Gemini API đang quá tải (503). "
+                "Hệ thống đã tự thử lại nhưng vẫn thất bại. Vui lòng thử lại sau."
+            )
+        raise ValueError(f"Lỗi Gemini API: {e}")
 
 
 def parse_sql_from_response(raw: str) -> str:
@@ -2571,6 +2591,16 @@ _OPERATOR_MAP = {
     "is exactly": "=", "is not": "!=",
 }
 
+_SQL_INJECTION_RE = re.compile(
+    r"[;\\]|--|\b(DROP|ALTER|CREATE|TRUNCATE|INSERT|UPDATE|DELETE|EXEC|EXECUTE|UNION)\b",
+    re.IGNORECASE,
+)
+
+
+def _check_string_value(val: str, field: str) -> None:
+    if _SQL_INJECTION_RE.search(val):
+        raise ValueError(f"Invalid value for field '{field}': contains disallowed characters or SQL keywords")
+
 _PREVIEW_MERCHANTS = [
     {"merchant_store": "Tap Hoa Co Mai", "region": "TP. HCM", "segment_tag": "Active Champion", "gmv_30d": 4210000, "cdp_status": "Excellent"},
     {"merchant_store": "Nguyen Thi Thu", "region": "Ha Noi", "segment_tag": "Loyal", "gmv_30d": 2850000, "cdp_status": "Good"},
@@ -2578,6 +2608,111 @@ _PREVIEW_MERCHANTS = [
     {"merchant_store": "Pham Thi Hoa", "region": "Binh Duong", "segment_tag": "New", "gmv_30d": 980000, "cdp_status": "Standard"},
     {"merchant_store": "Tran Minh Duc", "region": "Can Tho", "segment_tag": "At Risk", "gmv_30d": 340000, "cdp_status": "Watch"},
 ]
+
+
+def _eval_criterion(merchant: dict, c: dict) -> bool:
+    field = c.get("field", "")
+    op    = c.get("operator", "")
+    val   = c.get("value")
+    m_val = merchant.get(field)
+    if m_val is None:
+        return True
+    try:
+        if op == "greater than":     return float(m_val) > float(val)
+        if op == "less than":        return float(m_val) < float(val)
+        if op == "equals":           return float(m_val) == float(val)
+        if op == "between":
+            lo, hi = (val[0], val[1]) if isinstance(val, list) else (val, val)
+            return float(lo) <= float(m_val) <= float(hi)
+        if op == "is exactly":       return str(m_val) == str(val)
+        if op == "is not":           return str(m_val) != str(val)
+        if op == "is one of":
+            items = val if isinstance(val, list) else [val]
+            return str(m_val) in [str(v) for v in items]
+        if op == "last consecutive": return float(m_val) >= float(val)
+    except (TypeError, ValueError):
+        pass
+    return True
+
+
+def _eval_filters(merchant: dict, filters: dict) -> bool:
+    top_op = filters.get("operator", "AND")
+    group_results = []
+    for group in filters.get("groups", []):
+        group_op = group.get("operator", "AND")
+        results = [_eval_criterion(merchant, c) for c in group.get("criteria", [])]
+        if not results:
+            continue
+        group_results.append(all(results) if group_op == "AND" else any(results))
+    if not group_results:
+        return True
+    return all(group_results) if top_op == "AND" else any(group_results)
+
+
+def _build_merchant_pool(size: int = 2000) -> list[dict]:
+    import random
+    rng = random.Random(42)
+    regions   = ["TP. HCM", "Hà Nội", "Đà Nẵng", "Bình Dương", "Cần Thơ"]
+    tags      = ["Active Champion", "Loyal", "Promising", "At Risk", "New"]
+    statuses  = ["Excellent", "Good", "Standard", "Watch"]
+    prefixes  = ["Tạp Hóa", "Siêu Thị Mini", "Cửa Hàng", "Nhà Thuốc", "Quán Ăn"]
+    surnames  = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Mai", "Bùi", "Đặng", "Đỗ", "Vũ"]
+    pool = []
+    for i in range(size):
+        m = {
+            "merchant_id":    i + 1,
+            "merchant_store": f"{rng.choice(prefixes)} {rng.choice(surnames)} {i+1:04d}",
+            "region":         rng.choice(regions),
+            "segment_tag":    rng.choice(tags),
+            "cdp_status":     rng.choice(statuses),
+        }
+        for field, meta in CDP_CRITERIA_FIELDS.items():
+            ftype = meta["type"]
+            if ftype == "numeric":
+                if any(k in field for k in ("gmv", "amount", "revenue")):
+                    m[field] = round(rng.uniform(100_000, 180_000_000), 2)
+                elif any(k in field for k in ("rate", "growth")):
+                    m[field] = round(rng.uniform(-40.0, 150.0), 2)
+                elif "days" in field:
+                    m[field] = rng.randint(0, 365)
+                else:
+                    m[field] = round(rng.uniform(0, 200), 2)
+            elif ftype in ("categorical", "boolean"):
+                m[field] = rng.choice(meta.get("values", ["Yes", "No"]))
+            elif ftype == "duration":
+                m[field] = rng.randint(1, 24)
+        pool.append(m)
+    return pool
+
+
+_MERCHANT_POOL = _build_merchant_pool()
+
+
+def generate_preview_merchants(filters: dict, n: int = 5) -> list[dict]:
+    matched = [m for m in _MERCHANT_POOL if _eval_filters(m, filters)]
+    return [
+        {
+            "merchant_store": m["merchant_store"],
+            "region":         m["region"],
+            "segment_tag":    m["segment_tag"],
+            "gmv_30d":        m.get("gmv_30d", 0),
+            "cdp_status":     m["cdp_status"],
+        }
+        for m in matched[:n]
+    ]
+
+
+def export_merchants_csv(filters: dict) -> str:
+    import csv, io
+    matched = [m for m in _MERCHANT_POOL if _eval_filters(m, filters)]
+    out = io.StringIO()
+    base_cols = ["merchant_id", "merchant_store", "region", "segment_tag", "cdp_status", "gmv_30d"]
+    cdp_cols  = list(CDP_CRITERIA_FIELDS.keys())
+    fieldnames = base_cols + [c for c in cdp_cols if c not in base_cols]
+    writer = csv.DictWriter(out, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(matched)
+    return out.getvalue()
 
 
 def _count_criteria(filters: dict) -> int:
@@ -2601,6 +2736,9 @@ def _build_criterion_sql(c: dict) -> str:
         return f"({expr} BETWEEN {vals[0]} AND {vals[1]})"
     elif op == "is one of":
         items = val if isinstance(val, list) else [val]
+        for item in items:
+            if isinstance(item, str):
+                _check_string_value(item, field)
         quoted = ", ".join(f"'{v}'" for v in items)
         return f"({expr} IN ({quoted}))"
     elif op == "last consecutive":
@@ -2608,6 +2746,7 @@ def _build_criterion_sql(c: dict) -> str:
     elif op in ("is exactly", "is not", "equals", "greater than", "less than"):
         sql_op = _OPERATOR_MAP.get(op, "=")
         if isinstance(val, str):
+            _check_string_value(val, field)
             return f"({expr} {sql_op} '{val}')"
         return f"({expr} {sql_op} {val})"
     else:
@@ -3346,7 +3485,7 @@ HTML_CDP = """<!DOCTYPE html>
 
 
 @app.function(
-    secrets=[modal.Secret.from_name("anthropic-api-key")],
+    secrets=[modal.Secret.from_name("gemini-api-key")],
 )
 @modal.asgi_app()
 def fastapi_app():
@@ -3373,7 +3512,7 @@ def fastapi_app():
                     {"error": "Missing 'question' field", "code": 400},
                     status_code=400
                 )
-            raw = call_claude(TRANSLATE_SYSTEM_PROMPT, question)
+            raw = call_gemini(TRANSLATE_SYSTEM_PROMPT, question)
             sql = parse_sql_from_response(raw)
             return JSONResponse({"sql": sql, "mode": "translate"})
         except Exception as e:
@@ -3389,7 +3528,7 @@ def fastapi_app():
                     {"error": "Missing 'sql' field", "code": 400},
                     status_code=400
                 )
-            raw = call_claude(EXPLAIN_SYSTEM_PROMPT, sql_input)
+            raw = call_gemini(EXPLAIN_SYSTEM_PROMPT, sql_input)
             steps = parse_steps_from_response(raw)
             return JSONResponse({"steps": steps, "mode": "explain"})
         except Exception as e:
@@ -3417,7 +3556,7 @@ def fastapi_app():
                 return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
             sql = estimate_audience_sql(filters)
             est = simulate_audience_estimate(filters)
-            preview = _PREVIEW_MERCHANTS[:body.get("preview_rows", 5)]
+            preview = generate_preview_merchants(filters, body.get("preview_rows", 5))
             return JSONResponse({**est, "generated_sql": sql, "merchant_preview": preview, "mode": "cdp_estimate"})
         except ValueError as e:
             return JSONResponse({"error": str(e), "code": 400}, status_code=400)
@@ -3431,9 +3570,31 @@ def fastapi_app():
             description = body.get("description", "").strip()
             if not description:
                 return JSONResponse({"error": "Missing 'description' field", "code": 400}, status_code=400)
-            raw = call_claude(CDP_NL_SYSTEM_PROMPT, description)
+            raw = call_gemini(CDP_NL_SYSTEM_PROMPT, description)
             parsed = parse_filter_json_from_response(raw)
             return JSONResponse({**parsed, "mode": "nl_to_filters"})
+        except Exception as e:
+            return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
+    @web_app.post("/api/cdp/export")
+    async def api_cdp_export(request: Request):
+        import datetime
+        from fastapi.responses import StreamingResponse
+        try:
+            body = await request.json()
+            filters = body.get("filters")
+            if not filters or not filters.get("groups"):
+                return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
+            csv_content = export_merchants_csv(filters)
+            date_str = datetime.date.today().strftime("%Y%m%d")
+            filename = f"cdp_export_{date_str}.csv"
+            return StreamingResponse(
+                iter([csv_content.encode("utf-8-sig")]),
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={filename}"},
+            )
+        except ValueError as e:
+            return JSONResponse({"error": str(e), "code": 400}, status_code=400)
         except Exception as e:
             return JSONResponse({"error": str(e), "code": 500}, status_code=500)
 

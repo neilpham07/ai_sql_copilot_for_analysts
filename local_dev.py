@@ -3,7 +3,7 @@ QueryMind AI — Local Development Server
 Bypasses Modal cloud infrastructure for fast local testing.
 
 Usage:
-  PowerShell:  $env:ANTHROPIC_API_KEY = "sk-ant-api03-..."
+  PowerShell:  $env:GEMINI_API_KEY = "AIza..."
   Then run:    python local_dev.py
   Open:        http://localhost:8000
 """
@@ -11,23 +11,36 @@ import os
 import re
 
 # ── API key guard ────────────────────────────────────────────
-_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+_api_key = os.environ.get("GEMINI_API_KEY", "")
 if not _api_key:
     print()
     print("  ╔══════════════════════════════════════════════════╗")
-    print("  ║  ANTHROPIC_API_KEY chưa được thiết lập!         ║")
+    print("  ║  GEMINI_API_KEY chưa được thiết lập!            ║")
     print("  ║                                                  ║")
     print("  ║  Chạy lệnh này trong PowerShell trước:          ║")
-    print('  ║  $env:ANTHROPIC_API_KEY = "sk-ant-api03-..."    ║')
+    print('  ║  $env:GEMINI_API_KEY = "AIza..."                ║')
     print("  ║                                                  ║")
     print("  ║  Sau đó chạy lại: python local_dev.py           ║")
     print("  ╚══════════════════════════════════════════════════╝")
     print()
     raise SystemExit(1)
+if not _api_key.startswith("AIza"):
+    print()
+    print("  ╔══════════════════════════════════════════════════╗")
+    print("  ║  ⚠  GEMINI_API_KEY có vẻ không hợp lệ!         ║")
+    print("  ║                                                  ║")
+    print("  ║  Key hợp lệ phải bắt đầu bằng: AIza            ║")
+    print("  ║  Hiện tại:  " + _api_key[:20] + "...             ║")
+    print("  ║                                                  ║")
+    print("  ║  Server vẫn khởi động nhưng các lệnh gọi AI    ║")
+    print("  ║  sẽ trả về lỗi 403 khi sử dụng.                ║")
+    print("  ╚══════════════════════════════════════════════════╝")
+    print()
 
-import anthropic
+from google import genai
+from google.genai import types
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 import uvicorn
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,14 +61,16 @@ def _load_app_module():
     return mod
 
 _app = _load_app_module()
-CDP_CRITERIA_FIELDS        = _app.CDP_CRITERIA_FIELDS
-CDP_SEGMENTS_LIBRARY       = _app.CDP_SEGMENTS_LIBRARY
-CDP_NL_SYSTEM_PROMPT       = _app.CDP_NL_SYSTEM_PROMPT
-_PREVIEW_MERCHANTS         = _app._PREVIEW_MERCHANTS
-build_sql_from_filters     = _app.build_sql_from_filters
-estimate_audience_sql      = _app.estimate_audience_sql
-simulate_audience_estimate = _app.simulate_audience_estimate
+CDP_CRITERIA_FIELDS             = _app.CDP_CRITERIA_FIELDS
+CDP_SEGMENTS_LIBRARY            = _app.CDP_SEGMENTS_LIBRARY
+CDP_NL_SYSTEM_PROMPT            = _app.CDP_NL_SYSTEM_PROMPT
+_PREVIEW_MERCHANTS              = _app._PREVIEW_MERCHANTS
+build_sql_from_filters          = _app.build_sql_from_filters
+estimate_audience_sql           = _app.estimate_audience_sql
+simulate_audience_estimate      = _app.simulate_audience_estimate
 parse_filter_json_from_response = _app.parse_filter_json_from_response
+generate_preview_merchants      = _app.generate_preview_merchants
+export_merchants_csv            = _app.export_merchants_csv
 
 # ── Schema context ───────────────────────────────────────────
 SCHEMA_CONTEXT = {
@@ -146,16 +161,43 @@ RULES — FOLLOW STRICTLY:
 6. Use simple, encouraging Vietnamese. Avoid "complex", "advanced", or intimidating language.
 """
 
-# ── Claude helpers ───────────────────────────────────────────
-def call_claude(system_prompt: str, user_message: str) -> str:
-    client = anthropic.Anthropic()
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-    )
-    return msg.content[0].text
+# ── Gemini helpers ───────────────────────────────────────────
+def call_gemini(system_prompt: str, user_message: str, _retries: int = 1) -> str:
+    import time
+    try:
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,
+            ),
+        )
+        return response.text
+    except Exception as e:
+        err = str(e).lower()
+        if any(k in err for k in ("api_key", "invalid", "401", "403", "permission", "authenticate", "credential")):
+            raise ValueError(
+                "GEMINI_API_KEY không hợp lệ hoặc chưa được cấu hình đúng. "
+                "Vui lòng kiểm tra biến môi trường GEMINI_API_KEY "
+                "(key lấy từ Google AI Studio, bắt đầu bằng AIza) rồi khởi động lại server."
+            )
+        if any(k in err for k in ("connect", "network", "timeout", "unreachable")):
+            raise ValueError(
+                "Không thể kết nối đến Google Gemini API. "
+                "Vui lòng kiểm tra kết nối mạng và thử lại."
+            )
+        if any(k in err for k in ("503", "unavailable", "high demand", "quota", "rate", "429", "resource_exhausted")):
+            if _retries > 0:
+                time.sleep(2)
+                return call_gemini(system_prompt, user_message, _retries - 1)
+            raise ValueError(
+                "Google Gemini API đang quá tải (503 — server bên Google bận). "
+                "Hệ thống đã tự thử lại 1 lần nhưng vẫn thất bại. "
+                "Vui lòng đợi vài giây rồi thử lại."
+            )
+        raise ValueError(f"Lỗi Gemini API: {e}")
 
 def parse_sql_from_response(raw: str) -> str:
     match = re.search(r"```sql\s*([\s\S]*?)\s*```", raw)
@@ -194,7 +236,7 @@ async def api_translate(request: Request):
         question = body.get("question", "").strip()
         if not question:
             return JSONResponse({"error": "Missing 'question' field", "code": 400}, status_code=400)
-        raw = call_claude(TRANSLATE_SYSTEM_PROMPT, question)
+        raw = call_gemini(TRANSLATE_SYSTEM_PROMPT, question)
         sql = parse_sql_from_response(raw)
         return JSONResponse({"sql": sql, "mode": "translate"})
     except Exception as e:
@@ -207,7 +249,7 @@ async def api_explain(request: Request):
         sql_input = body.get("sql", "").strip()
         if not sql_input:
             return JSONResponse({"error": "Missing 'sql' field", "code": 400}, status_code=400)
-        raw   = call_claude(EXPLAIN_SYSTEM_PROMPT, sql_input)
+        raw   = call_gemini(EXPLAIN_SYSTEM_PROMPT, sql_input)
         steps = parse_steps_from_response(raw)
         return JSONResponse({"steps": steps, "mode": "explain"})
     except Exception as e:
@@ -235,7 +277,7 @@ async def api_cdp_estimate(request: Request):
             return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
         sql = estimate_audience_sql(filters)
         est = simulate_audience_estimate(filters)
-        preview = _PREVIEW_MERCHANTS[:body.get("preview_rows", 5)]
+        preview = generate_preview_merchants(filters, body.get("preview_rows", 5))
         return JSONResponse({**est, "generated_sql": sql, "merchant_preview": preview, "mode": "cdp_estimate"})
     except ValueError as e:
         return JSONResponse({"error": str(e), "code": 400}, status_code=400)
@@ -249,9 +291,30 @@ async def api_cdp_nl(request: Request):
         description = body.get("description", "").strip()
         if not description:
             return JSONResponse({"error": "Missing 'description' field", "code": 400}, status_code=400)
-        raw = call_claude(CDP_NL_SYSTEM_PROMPT, description)
+        raw = call_gemini(CDP_NL_SYSTEM_PROMPT, description)
         parsed = parse_filter_json_from_response(raw)
         return JSONResponse({**parsed, "mode": "nl_to_filters"})
+    except Exception as e:
+        return JSONResponse({"error": str(e), "code": 500}, status_code=500)
+
+@web_app.post("/api/cdp/export")
+async def api_cdp_export(request: Request):
+    import datetime
+    try:
+        body = await request.json()
+        filters = body.get("filters")
+        if not filters or not filters.get("groups"):
+            return JSONResponse({"error": "Missing 'filters' field", "code": 400}, status_code=400)
+        csv_content = export_merchants_csv(filters)
+        date_str = datetime.date.today().strftime("%Y%m%d")
+        filename = f"cdp_export_{date_str}.csv"
+        return StreamingResponse(
+            iter([csv_content.encode("utf-8-sig")]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e), "code": 400}, status_code=400)
     except Exception as e:
         return JSONResponse({"error": str(e), "code": 500}, status_code=500)
 
@@ -261,11 +324,11 @@ if __name__ == "__main__":
     print("  ┌──────────────────────────────────────────────────┐")
     print("  │   QueryMind AI — Local Dev Server                │")
     print("  │                                                  │")
-    print("  │   Landing   : http://localhost:8000              │")
-    print("  │   Workspace : http://localhost:8000/workspace    │")
-    print("  │   CDP Portal: http://localhost:8000/cdp          │")
+    print("  │   Landing   : http://localhost:8085              │")
+    print("  │   Workspace : http://localhost:8085/workspace    │")
+    print("  │   CDP Portal: http://localhost:8085/cdp          │")
     print("  │                                                  │")
     print("  │   Ctrl+C de dung server                          │")
     print("  └──────────────────────────────────────────────────┘")
     print()
-    uvicorn.run(web_app, host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run(web_app, host="127.0.0.1", port=8085, reload=False)
